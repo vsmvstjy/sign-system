@@ -109,10 +109,10 @@
       const pngDataUrl = sigCanvas.toDataURL('image/png');
       const pngBytes = Uint8Array.from(atob(pngDataUrl.split(',')[1]), c => c.charCodeAt(0));
       const pngImg = await pdfDocLib.embedPng(pngBytes);
-      const { width, height } = pngImg.scale(0.5);
+      const { width, height } = pngImg.scale(0.3);
 
       const cmToPx = cm => cm * 37.8;
-      const offsetX = cmToPx(2), offsetY = cmToPx(3);
+      const offsetX = cmToPx(3), offsetY = cmToPx(3);
       const drawX = data.posX - offsetX, drawY = data.posY - offsetY;
 
       const page = pdfDocLib.getPages()[data.page - 1];
