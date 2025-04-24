@@ -6,9 +6,19 @@
   <style>
     body { font-family: sans-serif; padding:20px; }
     #nav { text-align:center; margin:10px; }
-    canvas { border:1px solid #ccc; display:block; margin:10px auto; cursor:crosshair; }
+    #canvasWrapper { position: relative; display: inline-block; }
+    canvas { border:1px solid #ccc; display:block; cursor:crosshair; }
     input, button { display:block; margin:10px auto; padding:10px; width:90%; max-width:500px; }
     #linkOutput a { word-break: break-all; }
+    .marker {
+      position: absolute;
+      width: 120px; height: 40px;
+      border: 2px dashed #007bff;
+      background: rgba(255,255,255,0.7);
+      color: #007bff; font-weight: bold; font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+      text-align: center; pointer-events: none; z-index: 1000;
+    }
   </style>
 </head>
 <body>
@@ -21,7 +31,7 @@
     <span id="pageInfo">Page 0/0</span>
     <button id="nextPage">다음 페이지</button>
   </div>
-  <canvas id="pdfCanvas"></canvas><br>
+  <div id="canvasWrapper"><canvas id="pdfCanvas"></canvas></div><br>
   <button id="generate">링크 생성</button>
   <p id="linkOutput"></p>
 
@@ -33,84 +43,87 @@
 
     let pdfDoc, currentPage=1, totalPages=0, pdfBase64='';
     let posX=0, posY=0, posPage=1;
-    const canvas=document.getElementById('pdfCanvas'), ctx=canvas.getContext('2d');
-    const pageInfo=document.getElementById('pageInfo');
+    const canvas = document.getElementById('pdfCanvas'),
+          wrapper = document.getElementById('canvasWrapper'),
+          ctx = canvas.getContext('2d'),
+          pageInfo = document.getElementById('pageInfo');
 
-    // Upload PDF
+    // PDF 업로드
     document.getElementById('pdfFile').addEventListener('change', e => {
-      const file=e.target.files[0];
-      const reader=new FileReader();
-      reader.onload=async()=>{
-        pdfBase64=reader.result.split(',')[1];
-        const raw=Uint8Array.from(atob(pdfBase64),c=>c.charCodeAt(0));
-        pdfDoc=await pdfjsLib.getDocument({data:raw}).promise;
-        totalPages=pdfDoc.numPages; currentPage=1;
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = async () => {
+        pdfBase64 = reader.result.split(',')[1];
+        const raw = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
+        pdfDoc = await pdfjsLib.getDocument({data: raw}).promise;
+        totalPages = pdfDoc.numPages; currentPage = 1;
         await renderPage(currentPage);
       };
       reader.readAsDataURL(file);
     });
 
     // Rectangle marker
-    const marker=(()=>{
-      const m=document.createElement('div');
-      Object.assign(m.style,{
-        position:'absolute', width:'120px', height:'40px',
-        border:'2px dashed #007bff', background:'rgba(255,255,255,0.7)',
-        color:'#007bff', fontWeight:'bold', fontSize:'16px',
-        display:'none', alignItems:'center', justifyContent:'center',
-        textAlign:'center', pointerEvents:'none', zIndex:'1000'
-      });
-      m.innerText='서명';
-      document.body.appendChild(m);
-      return m;
-    })();
+    const marker = document.createElement('div');
+    marker.className = 'marker';
+    marker.innerText = '서명';
+    wrapper.appendChild(marker);
 
-    // Render page
-    async function renderPage(n){
-      currentPage=n;
-      const page=await pdfDoc.getPage(n);
-      const vp=page.getViewport({scale:1.2});
-      canvas.width=vp.width; canvas.height=vp.height;
-      await page.render({canvasContext:ctx,viewport:vp}).promise;
-      pageInfo.textContent=`Page ${n}/${totalPages}`;
-
-      if(n===posPage){
-        const rawVp=page.getViewport({scale:1});
-        const scaleX=vp.width/rawVp.width, scaleY=vp.height/rawVp.height;
-        const mx=posX*scaleX, my=posY*scaleY;
-        const rect=canvas.getBoundingClientRect();
-        const MARKER_W=120, MARKER_H=40;
-        marker.style.left=`${rect.left+mx-MARKER_W/2}px`;
-        marker.style.top=`${rect.top+my-MARKER_H/2}px`;
-        marker.style.display='flex';
+    // 페이지 렌더링
+    async function renderPage(n) {
+      currentPage = n;
+      const page = await pdfDoc.getPage(n);
+      const vp = page.getViewport({scale:1.2});
+      canvas.width = vp.width; canvas.height = vp.height;
+      canvas.style.width = vp.width + 'px';
+      canvas.style.height = vp.height + 'px';
+      await page.render({canvasContext: ctx, viewport: vp}).promise;
+      pageInfo.textContent = `Page ${n}/${totalPages}`;
+      if (n === posPage) {
+        const rawVp = page.getViewport({scale:1});
+        const scaleX = vp.width / rawVp.width,
+              scaleY = vp.height / rawVp.height;
+        const mx = posX * scaleX,
+              my = posY * scaleY;
+        const MARKER_W = 120, MARKER_H = 40;
+        marker.style.left = (mx - MARKER_W/2) + 'px';
+        marker.style.top  = (my - MARKER_H/2) + 'px';
+        marker.style.display = 'flex';
       } else {
-        marker.style.display='none';
+        marker.style.display = 'none';
       }
     }
 
-    // Nav
-    document.getElementById('prevPage').onclick=()=>{ if(currentPage>1) renderPage(--currentPage); };
-    document.getElementById('nextPage').onclick=()=>{ if(currentPage<totalPages) renderPage(++currentPage); };
+    // 페이지 네비게이션
+    document.getElementById('prevPage').onclick = () => { if (currentPage>1) renderPage(--currentPage); };
+    document.getElementById('nextPage').onclick = () => { if (currentPage<totalPages) renderPage(++currentPage); };
 
-    // Set position
-    canvas.addEventListener('click', e=>{
-      const rect=canvas.getBoundingClientRect();
-      posX=e.clientX-rect.left; posY=e.clientY-rect.top;
-      posPage=currentPage;
+    // 클릭 위치 저장
+    canvas.addEventListener('click', e => {
+      const rect = canvas.getBoundingClientRect();
+      posX = e.clientX - rect.left;
+      posY = e.clientY - rect.top;
+      posPage = currentPage;
       renderPage(currentPage);
     });
 
-    // Generate link
-    document.getElementById('generate').onclick=async()=>{
-      const title=document.getElementById('docTitle').value;
-      const receiver=document.getElementById('receiver').value;
-      if(!title||!receiver||!pdfBase64) return alert('모두 입력 후 위치 클릭');
-      const id=Math.random().toString(36).substr(2,10);
-      await setDoc(doc(db,'signRequests',id),{
-        docTitle:title, receiver, pdfBase64, posX, posY, page:posPage, createdAt:Date.now()
+    // 링크 생성
+    document.getElementById('generate').onclick = async () => {
+      const title = document.getElementById('docTitle').value;
+      const receiver = document.getElementById('receiver').value;
+      if (!title || !receiver || !pdfBase64) {
+        alert('문서 제목, 이메일, PDF 업로드 후 위치 클릭');
+        return;
+      }
+      const id = Math.random().toString(36).substr(2,10);
+      await setDoc(doc(db,'signRequests',id), {
+        docTitle: title,
+        receiver,
+        pdfBase64,
+        posX, posY, page: posPage,
+        createdAt: Date.now()
       });
-      const url=`${window.location.origin}/sign.html?id=${id}`;
-      document.getElementById('linkOutput').innerHTML=`<a href="${url}" target="_blank">${url}</a>`;
+      const url = `${window.location.origin}/sign.html?id=${id}`;
+      document.getElementById('linkOutput').innerHTML = `<a href="${url}" target="_blank">${url}</a>`;
     };
   </script>
 </body>

@@ -27,11 +27,8 @@
     let data,pdfDoc;
     const pdfCanvas=document.getElementById('pdfCanvas'),pdfCtx=pdfCanvas.getContext('2d');
     const sigCanvas=document.getElementById('signaturePad'),sigCtx=sigCanvas.getContext('2d');
-
     function clearSig(){sigCtx.clearRect(0,0,sigCanvas.width,sigCanvas.height);}
-
     window.startAuth=()=>google.accounts.oauth2.initTokenClient({client_id:'972595541590-k962h1slhqu6cm1r5fhp9nvdd8hu21vk.apps.googleusercontent.com',scope:'https://www.googleapis.com/auth/gmail.send',callback:tok=>sendEmail(tok.access_token)}).requestAccessToken();
-
     async function init(){
       const id=new URLSearchParams(location.search).get('id');
       const snap=await getDoc(doc(db,'signRequests',id));
@@ -41,38 +38,21 @@
       pdfDoc=await pdfjsLib.getDocument({data:raw}).promise;
       const page=await pdfDoc.getPage(data.page);const vp=page.getViewport({scale:1.2});
       pdfCanvas.width=vp.width;pdfCanvas.height=vp.height;await page.render({canvasContext:pdfCtx,viewport:vp}).promise;
-      // signature handlers
-      let drawing=false;
-      sigCanvas.onmousedown=e=>{drawing=true;sigCtx.beginPath();sigCtx.moveTo(e.offsetX,e.offsetY);};
-      sigCanvas.onmousemove=e=>{if(drawing){sigCtx.lineTo(e.offsetX,e.offsetY);sigCtx.stroke();}};
-      sigCanvas.onmouseup=()=>drawing=false;
-      sigCanvas.onmouseout=()=>drawing=false;
-      sigCanvas.addEventListener('touchstart',e=>{e.preventDefault();drawing=true;const t=e.touches[0];const r=sigCanvas.getBoundingClientRect();sigCtx.beginPath();sigCtx.moveTo(t.clientX-r.left,t.clientY-r.top);});
-      sigCanvas.addEventListener('touchmove',e=>{e.preventDefault();if(drawing){const t=e.touches[0];const r=sigCanvas.getBoundingClientRect();sigCtx.lineTo(t.clientX-r.left,t.clientY-r.top);sigCtx.stroke();}});
-      sigCanvas.addEventListener('touchend',e=>{e.preventDefault();drawing=false;});
+      let drawing=false;sigCanvas.onmousedown=e=>{drawing=true;sigCtx.beginPath();sigCtx.moveTo(e.offsetX,e.offsetY);};sigCanvas.onmousemove=e=>{if(drawing){sigCtx.lineTo(e.offsetX,e.offsetY);sigCtx.stroke();}};sigCanvas.onmouseup=()=>drawing=false;sigCanvas.onmouseout=()=>drawing=false;sigCanvas.addEventListener('touchstart',e=>{e.preventDefault();drawing=true;const t=e.touches[0];const r=sigCanvas.getBoundingClientRect();sigCtx.beginPath();sigCtx.moveTo(t.clientX-r.left,t.clientY-r.top);});sigCanvas.addEventListener('touchmove',e=>{e.preventDefault();if(drawing){const t=e.touches[0];const r=sigCanvas.getBoundingClientRect();sigCtx.lineTo(t.clientX-r.left,t.clientY-r.top);sigCtx.stroke();}});sigCanvas.addEventListener('touchend',e=>{e.preventDefault();drawing=false;});
     }
-
     async function sendEmail(token){
       const name=document.getElementById('userName').value;if(!name)return alert('이름을 입력해주세요.');
-      const raw=Uint8Array.from(atob(data.pdfBase64),c=>c.charCodeAt(0));
-      const pdfDocLib=await PDFLib.PDFDocument.load(raw);
-      const pngBytes=Uint8Array.from(atob(sigCanvas.toDataURL('image/png').split(',')[1]),c=>c.charCodeAt(0));
-      const pngImg=await pdfDocLib.embedPng(pngBytes);
-      const {width,height}=pngImg.scale(0.5);
-      const cmToPx=cm=>cm*37.8;const offsetX=cmToPx(2),offsetY=cmToPx(3);
-      const drawX=data.posX-offsetX,drawY=data.posY-offsetY;
-      const page=pdfDocLib.getPages()[data.page-1];
-      page.drawImage(pngImg,{x:drawX,y:page.getHeight()-drawY-height,width,height});
-      const signed=await pdfDocLib.save();const signedBase64=btoa(String.fromCharCode(...signed));
+      const raw=Uint8Array.from(atob(data.pdfBase64),c=>c.charCodeAt(0));const pdfDocLib=await PDFLib.PDFDocument.load(raw);
+      const pngBytes=Uint8Array.from(atob(sigCanvas.toDataURL('image/png').split(',')[1]),c=>c.charCodeAt(0));const pngImg=await pdfDocLib.embedPng(pngBytes);
+      const {width,height}=pngImg.scale(0.5);const cmTp=cm=>cm*37.8;const offX=cmTp(2),offY=cmTp(3);
+      const dX=data.posX-offX,dY=data.posY-offY;const pg=pdfDocLib.getPages()[data.page-1];
+      pg.drawImage(pngImg,{x:dX,y:pg.getHeight()-dY-height,width,height});const signed=await pdfDocLib.save(),signedB=btoa(String.fromCharCode(...signed));
       const subject='=?UTF-8?B?'+btoa(unescape(encodeURIComponent('[전자서명 제출] '+data.docTitle+' - '+name)))+'?=';
       const body='본인은 첨부된 "'+data.docTitle+'" 문서를 열람하였고, 이에 동의하여 아래와 같이 서명합니다.\n\n- 제출자 이름: '+name+'\n- 제출 일시: '+new Date().toLocaleString();
-      const boundary='BOUNDARY',lines=['MIME-Version: 1.0','To: '+data.receiver,'Subject: '+subject,'Content-Type: multipart/mixed; boundary='+boundary,'','--'+boundary,'Content-Type: text/plain; charset=UTF-8','',body,'','--'+boundary,'Content-Type: application/pdf','Content-Disposition: attachment; filename="signed.pdf"','Content-Transfer-Encoding: base64','',signedBase64,'--'+boundary+'--'];
-      const emailBody=lines.join('\r\n');
-      gapi.load('client',()=>gapi.client.init({apiKey:'AIzaSyBdO8g3lJHfxoiSqgOWXp1q37zMkrkaBg4',discoveryDocs:['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest']})
-        .then(()=>{gapi.client.setToken({access_token:token});return gapi.client.gmail.users.messages.send({userId:'me',resource:{raw:btoa(unescape(encodeURIComponent(emailBody))).replace(/\+/g,'-').replace(/\//g,'_')}});}).
-        then(()=>alert('제출 완료')).catch(e=>{console.error(e);alert('전송 실패');}));
+      const bnd='BOUNDARY',lines=['MIME-Version: 1.0','To: '+data.receiver,'Subject: '+subject,'Content-Type: multipart/mixed; boundary='+bnd,'','--'+bnd,'Content-Type: text/plain; charset=UTF-8','',body,'','--'+bnd,'Content-Type: application/pdf','Content-Disposition: attachment; filename="signed.pdf"','Content-Transfer-Encoding: base64','',signedB,'--'+bnd+'--'];
+      const mail=lines.join('\r\n');gapi.load('client',()=>gapi.client.init({apiKey:'AIzaSyBdO8g3lJHfxoiSqgOWXp1q37zMkrkaBg4',discoveryDocs:['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest']}).then(()=>{gapi.client.setToken({access_token:token});return gapi.client.gmail.users.messages.send({userId:'me',resource:{raw:btoa(unescape(encodeURIComponent(mail))).replace(/\+/g,'-').replace(/\//g,'_')}});}).
+        then(()=>alert('제출 완료')).catch(()=>alert('전송 실패')));
     }
-
     init();
   </script>
 </body>

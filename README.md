@@ -1,7 +1,5 @@
-# Sign System v2 with Rectangle Marker
+# Sign System v2 Rectangular Marker (Relative)
 
-- Firebase integration (Firestore)
-- Upload page: click to set rectangle labeled "서명"
-- Sign page: PDF preview + signature pad + Gmail send
-
-Next: test marker placement, then enhance modals.
+- Marker as rectangle with '서명' text, positioned relative to canvas wrapper.
+- Firebase Firestore integration.
+- Sign page unchanged from v2.
