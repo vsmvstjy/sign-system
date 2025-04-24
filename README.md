@@ -1,12 +1,12 @@
-# Sign System Final
+# Sign System Updated
 
-## Features Applied
-- Firebase Firestore storage
-- Upload page with PDF viewer and persistent marker
-- Sign page with full-screen PDF, magnetized modal popup
-- Touch & mouse signature support
-- Accurate mapping and offset
-- Gmail API integration
+- Firebase integration
+- Persistent marker on upload
+- Full-screen PDF view on sign page
+- Magnetized click to open large modal
+- Enlarged marker and signature pad
+- Accurate coordinate mapping
+- Mouse & touch support
+- Gmail API email send
 
-## Deployment
-Push to GitHub and connect to Vercel for automatic deployment.
+Deploy: push to GitHub -> Vercel automatic deploy.
