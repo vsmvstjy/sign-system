@@ -6,8 +6,8 @@
   <style>
     body { font-family: sans-serif; padding:20px; }
     #nav { text-align:center; margin:10px; }
-    canvas { border:1px solid #ccc; display:block; margin:10px auto; cursor: crosshair; }
-    input,button { display:block; margin:10px auto; padding:10px; width:90%; max-width:500px; }
+    canvas { border:1px solid #ccc; display:block; margin:10px auto; cursor:crosshair; }
+    input, button { display:block; margin:10px auto; padding:10px; width:90%; max-width:500px; }
     #linkOutput a { word-break: break-all; }
   </style>
 </head>
@@ -24,104 +24,78 @@
   <canvas id="pdfCanvas"></canvas><br>
   <button id="generate">링크 생성</button>
   <p id="linkOutput"></p>
-
+  
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
   <script>
-    pdfjsLib.GlobalWorkerOptions.workerSrc =
-      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
   </script>
   <script type="module">
     import { db } from './firebase-config.js';
     import { doc, setDoc } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
-
-    let pdfDoc, currentPage = 1, totalPages = 0, pdfBase64 = '';
-    let posX = 0, posY = 0, posPage = 1;
-
-    const canvas = document.getElementById('pdfCanvas'),
-          ctx = canvas.getContext('2d'),
-          pageInfo = document.getElementById('pageInfo');
-
+    
+    let pdfDoc, currentPage=1, totalPages=0, pdfBase64='';
+    let posX=0, posY=0, posPage=1;
+    const canvas=document.getElementById('pdfCanvas'), ctx=canvas.getContext('2d');
+    const pageInfo=document.getElementById('pageInfo');
+    
     document.getElementById('pdfFile').addEventListener('change', e => {
       const file = e.target.files[0];
       const reader = new FileReader();
       reader.onload = async () => {
         pdfBase64 = reader.result.split(',')[1];
-        const raw = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
-        pdfDoc = await pdfjsLib.getDocument({ data: raw }).promise;
-        totalPages = pdfDoc.numPages;
-        currentPage = 1;
+        const raw = Uint8Array.from(atob(pdfBase64), c=>c.charCodeAt(0));
+        pdfDoc = await pdfjsLib.getDocument({data:raw}).promise;
+        totalPages = pdfDoc.numPages; currentPage=1;
         await renderPage(currentPage);
       };
       reader.readAsDataURL(file);
     });
-
-    // marker element
+    
     const marker = (() => {
       const m = document.createElement('div');
       Object.assign(m.style, {
-        position: 'absolute',
-        width: '20px', height: '20px',
-        border: '2px dashed red',
-        borderRadius: '50%',
-        display: 'none',
-        pointerEvents: 'none'
+        position:'absolute', width:'20px', height:'20px',
+        border:'2px dashed red', borderRadius:'50%', display:'none', pointerEvents:'none'
       });
       document.body.appendChild(m);
       return m;
     })();
-
+    
     async function renderPage(n) {
       currentPage = n;
       const page = await pdfDoc.getPage(n);
-      const vp = page.getViewport({ scale: 1.2 });
-      canvas.width = vp.width;
-      canvas.height = vp.height;
-      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      const vp = page.getViewport({scale:1.2});
+      canvas.width=vp.width; canvas.height=vp.height;
+      await page.render({canvasContext:ctx, viewport:vp}).promise;
       pageInfo.textContent = `Page ${n}/${totalPages}`;
-      // show marker if matches
-      if (n === posPage) {
-        const rect = canvas.getBoundingClientRect();
-        marker.style.display = 'block';
-        marker.style.left = `${rect.left + posX - 10}px`;
-        marker.style.top = `${rect.top + posY - 10}px`;
-      } else {
-        marker.style.display = 'none';
-      }
+      if(n===posPage) {
+        const rect=canvas.getBoundingClientRect();
+        marker.style.left=`${rect.left+posX-10}px`;
+        marker.style.top=`${rect.top+posY-10}px`;
+        marker.style.display='block';
+      } else marker.style.display='none';
     }
-
-    document.getElementById('prevPage').onclick = () => {
-      if (currentPage > 1) renderPage(--currentPage);
-    };
-    document.getElementById('nextPage').onclick = () => {
-      if (currentPage < totalPages) renderPage(++currentPage);
-    };
-
+    
+    document.getElementById('prevPage').onclick = ()=> { if(currentPage>1) renderPage(--currentPage); };
+    document.getElementById('nextPage').onclick = ()=> { if(currentPage<totalPages) renderPage(++currentPage); };
+    
     canvas.addEventListener('click', e => {
       const rect = canvas.getBoundingClientRect();
-      posX = e.clientX - rect.left;
-      posY = e.clientY - rect.top;
-      posPage = currentPage;
-      renderPage(currentPage);
+      posX = e.clientX - rect.left; posY = e.clientY - rect.top;
+      posPage = currentPage; renderPage(currentPage);
     });
-
+    
     document.getElementById('generate').onclick = async () => {
-      const title = document.getElementById('docTitle').value;
-      const receiver = document.getElementById('receiver').value;
-      if (!title || !receiver || !pdfBase64) {
-        alert('문서 제목, 이메일, PDF 업로드 후 위치 클릭');
-        return;
-      }
-      const id = Math.random().toString(36).substr(2, 10);
-      await setDoc(doc(db, 'signRequests', id), {
-        docTitle: title,
-        receiver,
-        pdfBase64,
-        posX, posY, page: posPage,
-        createdAt: Date.now()
+      const title=document.getElementById('docTitle').value;
+      const receiver=document.getElementById('receiver').value;
+      if(!title||!receiver||!pdfBase64) return alert('모두 입력 후 위치 클릭');
+      const id = Math.random().toString(36).substr(2,10);
+      await setDoc(doc(db,'signRequests',id), {
+        docTitle: title, receiver, pdfBase64, posX, posY, page: posPage, createdAt: Date.now()
       });
-      const url = `${window.location.origin}/sign.html?id=${id}`;
-      document.getElementById('linkOutput').innerHTML =
-        `<a href="${url}" target="_blank">${url}</a>`;
+      const url=`${window.location.origin}/sign.html?id=${id}`;
+      document.getElementById('linkOutput').innerHTML=`<a href="${url}" target="_blank">${url}</a>`;
     };
   </script>
 </body>

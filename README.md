@@ -1,11 +1,12 @@
-# Sign System with Firebase (v2)
+# Sign System Final
 
-Updated:
-- Upload: marker persists on page changes.
-- Sign: added touch event support for mobile.
+## Features Applied
+- Firebase Firestore storage
+- Upload page with PDF viewer and persistent marker
+- Sign page with full-screen PDF, magnetized modal popup
+- Touch & mouse signature support
+- Accurate mapping and offset
+- Gmail API integration
 
 ## Deployment
-1. Push to GitHub.
-2. Connect to Vercel.
-3. Deploy.
-
+Push to GitHub and connect to Vercel for automatic deployment.

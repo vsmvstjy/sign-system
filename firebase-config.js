@@ -1,8 +1,7 @@
-// Import the functions you need from the SDKs
+// Firebase configuration
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
 import { getFirestore } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
 
-// Your Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyDrkWBu5k-2nBHhZEHwgrBrPkWSKpro6po",
   authDomain: "sign-system-a8921.firebaseapp.com",
@@ -13,7 +12,6 @@ const firebaseConfig = {
   measurementId: "G-KD90T9QP1W"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
