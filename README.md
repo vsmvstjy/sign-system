@@ -1,17 +1,34 @@
-# 전자서명 시스템
+# Sign System with Firebase
 
-## 파일 구성
-- `upload.html` : 관리자용 문서 업로드 및 서명 위치 지정
-- `sign.html`   : 서명자용 서명 입력 및 메일 전송
-- `vercel.json` : Vercel 배포 시 팝업 정책 헤더 설정
-- `README.md`   : 이 문서
+This project integrates Firebase Firestore to store and retrieve electronic signature requests, allowing multiple devices and users.
 
-## API 키 설정
-1. Google Cloud Console → **API 및 서비스** → **자격 증명** → **API 키**
-2. 해당 API 키 값을 복사하여 `sign.html` 내부 gapi.client.init()의 `apiKey: 'YOUR_API_KEY'` 위치에 붙여넣기
+## Files
 
-## 배포
-1. GitHub 저장소에 전체 파일 커밋
-2. Vercel 연동 후 배포 URL 확인
-3. `https://<your-domain>/upload.html` 에서 파일 업로드 및 링크 생성
-4. 생성된 `sign.html?id=...` 링크로 서명 테스트
+- `firebase-config.js`: Firebase initialization and Firestore export.
+- `upload.html`: Admin page to upload PDF, select signature position, and generate a shareable link. Saves data to Firestore.
+- `sign.html`: User page to sign the document at the specified position and submit. Retrieves data from Firestore.
+- `vercel.json`: Config for Cross-Origin-Opener-Policy to enable Google OAuth pop-ups.
+
+## Deployment
+
+1. Push these files to your GitHub repository (e.g., `sign-system`).
+2. Connect the repository to Vercel.
+3. Deploy—Vercel will serve:
+   - `https://<your-vercel-domain>/upload.html`
+   - `https://<your-vercel-domain>/sign.html?id=<generated-id>`
+
+## Firebase Setup
+
+Firestore rules (test mode, open for reads/writes):
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /signRequests/{docId} {
+      allow read, write;
+    }
+  }
+}
+```
+
+Ensure your Firebase project (`sign-system-a8921`) has a Web App registered and Firestore enabled.
