@@ -111,7 +111,7 @@
         const mx = data.posX / vp.width * canvas.width;
         const my = data.posY / vp.height * canvas.height;
         marker.style.left = `${mx - 50}px`;
-        marker.style.top = `${my - 20}px`;
+        marker.style.top = `${my - 20 +20}px`;
         marker.style.display = 'block';
       } else {
         marker.style.display = 'none';
@@ -136,7 +136,7 @@
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       const mx = parseFloat(marker.style.left) + 50;
-      const my = parseFloat(marker.style.top) + 20;
+      const my = parseFloat(marker.style.top) + 20 +20;
       if (Math.hypot(x - mx, y - my) < 100 && currentPage === data.page) {
         startAuth();
       }
