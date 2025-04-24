@@ -17,26 +17,22 @@
   <button onclick="clearSig()">서명 지우기</button>
   <button onclick="startAuth()">Google 로그인 및 제출</button>
 
-  <!-- PDF.js for preview -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
   <script>
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
   </script>
-  <!-- PDF-Lib for editing -->
   <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
-  <!-- Google Identity -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <!-- Gmail API -->
   <script src="https://apis.google.com/js/api.js"></script>
 
   <script>
     let formData;
     async function init() {
-      const id = new URLSearchParams(location.search).get('id');
+      const id = new URLSearchParams(window.location.search).get('id');
       formData = JSON.parse(localStorage.getItem('signpos:' + id));
       if (!formData) { document.body.innerHTML = '<h3>잘못된 링크입니다.</h3>'; return; }
       document.getElementById('docTitle').innerText = '문서 제목: ' + formData.docTitle;
-      // Preview PDF page1
+
       const pdfCanvas = document.getElementById('pdfCanvas');
       const pdfCtx = pdfCanvas.getContext('2d');
       const raw = Uint8Array.from(atob(formData.pdfBase64), c=>c.charCodeAt(0));
@@ -45,10 +41,10 @@
       const vp = page.getViewport({ scale: 1 });
       pdfCanvas.width = vp.width; pdfCanvas.height = vp.height;
       await page.render({ canvasContext: pdfCtx, viewport: vp }).promise;
-      // Signature canvas init
+
       const sigCanvas = document.getElementById('signaturePad');
       const sigCtx = sigCanvas.getContext('2d');
-      let drawing = false;
+      let drawing=false;
       sigCanvas.onmousedown = e=>{ drawing=true; sigCtx.beginPath(); sigCtx.moveTo(e.offsetX,e.offsetY); };
       sigCanvas.onmousemove = e=> drawing && (sigCtx.lineTo(e.offsetX,e.offsetY), sigCtx.stroke());
       sigCanvas.onmouseup = ()=> drawing=false;
@@ -60,14 +56,14 @@
         callback: resp=> sendEmail(resp.access_token)
       }).requestAccessToken();
     }
+
     async function sendEmail(token) {
       const name = document.getElementById('userName').value;
       if (!name) return alert('이름을 입력해주세요.');
-      // Create signed PDF with pdf-lib
+
       const raw = Uint8Array.from(atob(formData.pdfBase64), c=>c.charCodeAt(0));
       const pdfDoc = await PDFLib.PDFDocument.load(raw);
-      const pages = pdfDoc.getPages();
-      const page = pages[0];
+      const page = pdfDoc.getPages()[0];
       const pngDataUrl = document.getElementById('signaturePad').toDataURL('image/png');
       const pngBytes = Uint8Array.from(atob(pngDataUrl.split(',')[1]), c=>c.charCodeAt(0));
       const pngImg = await pdfDoc.embedPng(pngBytes);
@@ -76,41 +72,53 @@
       page.drawImage(pngImg, { x: posX, y: page.getHeight() - posY - height, width, height });
       const signedBytes = await pdfDoc.save();
       const signedBase64 = btoa(String.fromCharCode(...signedBytes));
-      // Prepare email
+
       const subject = '[전자서명 제출] ' + formData.docTitle + ' - ' + name;
       const subjectEnc = '=?UTF-8?B?' + btoa(unescape(encodeURIComponent(subject))) + '?=';
       const bodyText = `본인은 첨부된 "${formData.docTitle}" 문서를 열람하였고, 이에 동의하여 아래와 같이 서명합니다.\n\n- 제출자 이름: ${name}\n- 제출 일시: ${new Date().toLocaleString()}`;
       const boundary = 'BOUNDARY';
-      const lines = [];
-      lines.push('MIME-Version: 1.0');
-      lines.push('Content-Type: multipart/mixed; boundary="' + boundary + '"');
-      lines.push('To: ' + formData.receiver);
-      lines.push('Subject: ' + subjectEnc);
-      lines.push('');
-      lines.push('--' + boundary);
-      lines.push('Content-Type: text/plain; charset=UTF-8');
-      lines.push('Content-Transfer-Encoding: 7bit');
-      lines.push('');
-      lines.push(bodyText);
-      lines.push('');
-      lines.push('--' + boundary);
-      lines.push('Content-Type: application/pdf');
-      lines.push('Content-Disposition: attachment; filename="signed.pdf"');
-      lines.push('Content-Transfer-Encoding: base64');
-      lines.push('');
-      lines.push(signedBase64);
-      lines.push('--' + boundary + '--');
+      const lines = [
+        'MIME-Version: 1.0',
+        'Content-Type: multipart/mixed; boundary="' + boundary + '"',
+        'To: ' + formData.receiver,
+        'Subject: ' + subjectEnc,
+        '',
+        '--' + boundary,
+        'Content-Type: text/plain; charset=UTF-8',
+        'Content-Transfer-Encoding: 7bit',
+        '',
+        bodyText,
+        '',
+        '--' + boundary,
+        'Content-Type: application/pdf',
+        'Content-Disposition: attachment; filename="signed.pdf"',
+        'Content-Transfer-Encoding: base64',
+        '',
+        signedBase64,
+        '',
+        '--' + boundary + '--'
+      ];
       const emailBody = lines.join('\r\n');
-      // Send via Gmail API
+
       gapi.load('client', () => {
-        gapi.client.init({ discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest'] }).then(() => {
+        gapi.client.init({
+          apiKey: 'AIzaSyBdO8g3lJHfxoiSqgOWXp1q37zMkrkaBg4',
+          discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest']
+        }).then(() => {
+          gapi.client.setToken({ access_token: token });
           return gapi.client.gmail.users.messages.send({
             userId: 'me',
             resource: { raw: btoa(unescape(encodeURIComponent(emailBody))).replace(/\+/g,'-').replace(/\//g,'_') }
           });
-        }).then(() => alert('서명이 제출되었습니다!'));
+        }).then(() => {
+          alert('서명이 성공적으로 제출되었습니다!');
+        }).catch(err => {
+          console.error(err);
+          alert('메일 전송에 실패했습니다.');
+        });
       });
     }
+
     init();
   </script>
 </body>
