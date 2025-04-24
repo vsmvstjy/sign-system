@@ -1,4 +1,12 @@
-# Sign System v2 Drag Adjustment
+# Sign System Final
 
-- Click to place marker, then drag marker to adjust exact position.
-- No manual offset coding needed.
+## Features Applied
+- Firebase Firestore storage
+- Upload page with PDF viewer and persistent marker
+- Sign page with full-screen PDF, magnetized modal popup
+- Touch & mouse signature support
+- Accurate mapping and offset
+- Gmail API integration
+
+## Deployment
+Push to GitHub and connect to Vercel for automatic deployment.
