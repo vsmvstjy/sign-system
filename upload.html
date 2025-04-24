@@ -4,34 +4,37 @@
   <meta charset="UTF-8">
   <title>문서 업로드 및 서명 위치 지정 (관리자)</title>
   <style>
-    body { font-family: sans-serif; padding:20px; }
+    body { font-family:sans-serif; padding:20px; }
     #nav { text-align:center; margin:10px; }
-    #canvasWrapper { position: relative; display: inline-block; }
-    canvas { border:1px solid #ccc; display:block; cursor:crosshair; }
-    input, button { display:block; margin:10px auto; padding:10px; width:90%; max-width:500px; }
-    #linkOutput a { word-break: break-all; }
+    #canvasWrapper { position:relative; display:inline-block; }
+    canvas { border:1px solid #ccc; cursor:crosshair; }
     .marker {
-      position: absolute;
-      width: 120px; height: 40px;
-      border: 2px dashed #007bff;
-      background: rgba(255,255,255,0.7);
-      color: #007bff; font-weight: bold; font-size: 16px;
-      display: flex; align-items: center; justify-content: center;
-      text-align: center; pointer-events: none; z-index: 1000;
+      position:absolute;
+      width:120px; height:40px;
+      border:2px dashed #007bff;
+      background:rgba(255,255,255,0.7);
+      color:#007bff; font-weight:bold; font-size:16px;
+      display:flex; align-items:center; justify-content:center;
+      text-align:center; cursor:move; z-index:1000;
     }
+    input, button { display:block; margin:10px auto; padding:10px; width:90%; max-width:500px; }
+    #linkOutput a { word-break:break-all; }
   </style>
 </head>
 <body>
   <h2>문서 업로드 및 서명 위치 지정 (관리자)</h2>
-  <input type="text" id="docTitle" placeholder="문서 제목"><br>
-  <input type="email" id="receiver" placeholder="회신 받을 이메일"><br>
-  <input type="file" id="pdfFile" accept="application/pdf"><br>
+  <input type="text" id="docTitle" placeholder="문서 제목">
+  <input type="email" id="receiver" placeholder="회신 받을 이메일">
+  <input type="file" id="pdfFile" accept="application/pdf">
   <div id="nav">
     <button id="prevPage">이전 페이지</button>
     <span id="pageInfo">Page 0/0</span>
     <button id="nextPage">다음 페이지</button>
   </div>
-  <div id="canvasWrapper"><canvas id="pdfCanvas"></canvas></div><br>
+  <div id="canvasWrapper">
+    <canvas id="pdfCanvas"></canvas>
+    <div id="marker" class="marker" style="display:none;">서명</div>
+  </div>
   <button id="generate">링크 생성</button>
   <p id="linkOutput"></p>
 
@@ -43,113 +46,95 @@
 
     let pdfDoc, currentPage=1, totalPages=0, pdfBase64='';
     let posX=0, posY=0, posPage=1;
-    let vpWidth=0, vpHeight=0;
+    let vpW=0, vpH=0;
     const canvas = document.getElementById('pdfCanvas'),
           wrapper = document.getElementById('canvasWrapper'),
+          marker = document.getElementById('marker'),
           ctx = canvas.getContext('2d'),
           pageInfo = document.getElementById('pageInfo');
 
-    document.getElementById('pdfFile').addEventListener('change', e => {
-      const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onload = async () => {
+    // PDF 업로드
+    document.getElementById('pdfFile').addEventListener('change', async e => {
+      const file=e.target.files[0];
+      const reader=new FileReader();
+      reader.onload=async()=> {
         pdfBase64 = reader.result.split(',')[1];
-        const raw = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
-        pdfDoc = await pdfjsLib.getDocument({data: raw}).promise;
-        totalPages = pdfDoc.numPages; currentPage = 1;
-        await renderPage(currentPage);
+        const raw=Uint8Array.from(atob(pdfBase64), c=>c.charCodeAt(0));
+        pdfDoc = await pdfjsLib.getDocument({data:raw}).promise;
+        totalPages = pdfDoc.numPages; currentPage=1;
+        renderPage(1);
       };
       reader.readAsDataURL(file);
     });
 
-    const marker = document.createElement('div');
-    marker.className = 'marker';
-    marker.innerText = '서명';
-    wrapper.appendChild(marker);
-
+    // 렌더링 함수
     async function renderPage(n) {
-      currentPage = n;
-      const page = await pdfDoc.getPage(n);
-      const vp = page.getViewport({scale:1.2});
-      vpWidth = vp.width; vpHeight = vp.height;
-      canvas.width = vpWidth; canvas.height = vpHeight;
-      canvas.style.width = vpWidth + 'px';
-      canvas.style.height = vpHeight + 'px';
-      await page.render({canvasContext: ctx, viewport: vp}).promise;
-      pageInfo.textContent = `Page ${n}/${totalPages}`;
-      if (n === posPage) {
-        const rawVp = page.getViewport({scale:1});
-        const scaleX = vpWidth/rawVp.width;
-        const scaleY = vpHeight/rawVp.height;
-        const mx = posX*scaleX;
-        const my = posY*scaleY;
-        const MARKER_W = 120, MARKER_H = 40;
-        marker.style.left = (mx - MARKER_W/2) + 'px';
-        marker.style.top  = (my - MARKER_H/2) + 'px';
-        marker.style.display = 'flex';
-        enableMarkerDrag();
-      } else {
-        marker.style.display = 'none';
-      }
+      currentPage=n;
+      const page=await pdfDoc.getPage(n);
+      const vp=page.getViewport({scale:1.2});
+      vpW=vp.width; vpH=vp.height;
+      canvas.width=vpW; canvas.height=vpH;
+      canvas.style.width=vpW+'px'; canvas.style.height=vpH+'px';
+      await page.render({canvasContext:ctx,viewport:vp}).promise;
+      pageInfo.textContent=`Page ${n}/${totalPages}`;
+      if(n===posPage) showMarker();
+      else marker.style.display='none';
     }
 
-    function enableMarkerDrag() {
-      let startX, startY;
-      function onMouseMove(e) {
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
-        startX = e.clientX; startY = e.clientY;
-        marker.style.left = parseFloat(marker.style.left) + dx + 'px';
-        marker.style.top  = parseFloat(marker.style.top)  + dy + 'px';
-      }
-      function onMouseUp() {
-        document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
-        // update posX,posY
-        const left = parseFloat(marker.style.left);
-        const top  = parseFloat(marker.style.top);
-        const mx = left + 60; // half marker width
-        const my = top  + 20; // half marker height
-        const rawX = mx * (canvas.width/vpWidth);
-        const rawY = my * (canvas.height/vpHeight);
-        posX = rawX; posY = rawY; posPage = currentPage;
-      }
-      marker.onmousedown = e => {
-        e.preventDefault();
-        startX = e.clientX; startY = e.clientY;
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
-      };
+    // 표시 및 드래그 활성화
+    function showMarker() {
+      const page = pdfDoc.getPage(posPage).then(pg=>pg.getViewport({scale:1}));
+      page.then(rawVp => {
+        const scaleX=vpW/rawVp.width, scaleY=vpH/rawVp.height;
+        const mx=posX*scaleX, my=posY*scaleY;
+        marker.style.left=(mx-60)+'px'; marker.style.top=(my-20)+'px';
+        marker.style.display='flex';
+      });
     }
 
-    document.getElementById('prevPage').onclick = () => { if (currentPage>1) renderPage(--currentPage); };
-    document.getElementById('nextPage').onclick = () => { if (currentPage<totalPages) renderPage(++currentPage); };
+    // 마커 드래그
+    marker.addEventListener('mousedown', e=>{
+      e.preventDefault();
+      const startX=e.clientX, startY=e.clientY;
+      const origLeft=parseFloat(marker.style.left), origTop=parseFloat(marker.style.top);
+      function onMove(evt) {
+        const dx=evt.clientX-startX, dy=evt.clientY-startY;
+        marker.style.left=(origLeft+dx)+'px';
+        marker.style.top=(origTop+dy)+'px';
+      }
+      function onUp(evt) {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        // 좌표 저장
+        const newLeft=parseFloat(marker.style.left)+60;
+        const newTop=parseFloat(marker.style.top)+20;
+        posX = newLeft * (canvas.width/vpW);
+        posY = newTop * (canvas.height/vpH);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
 
-    canvas.addEventListener('click', e => {
-      const rect = canvas.getBoundingClientRect();
-      posX = e.clientX - rect.left;
-      posY = e.clientY - rect.top;
-      posPage = currentPage;
+    // 네비게이션
+    document.getElementById('prevPage').onclick=()=>{ if(currentPage>1) renderPage(--currentPage); };
+    document.getElementById('nextPage').onclick=()=>{ if(currentPage<totalPages) renderPage(++currentPage); };
+
+    // 클릭 시 표시
+    canvas.addEventListener('click', e=>{
+      const rect=canvas.getBoundingClientRect();
+      posX=e.clientX-rect.left; posY=e.clientY-rect.top; posPage=currentPage;
       renderPage(currentPage);
     });
 
-    document.getElementById('generate').onclick = async () => {
-      const title = document.getElementById('docTitle').value;
-      const receiver = document.getElementById('receiver').value;
-      if (!title || !receiver || !pdfBase64) {
-        alert('문서 제목, 이메일, PDF 업로드 후 위치 클릭');
-        return;
-      }
-      const id = Math.random().toString(36).substr(2,10);
-      await setDoc(doc(db,'signRequests',id), {
-        docTitle: title,
-        receiver,
-        pdfBase64,
-        posX, posY, page: posPage,
-        createdAt: Date.now()
-      });
-      const url = `${window.location.origin}/sign.html?id=${id}`;
-      document.getElementById('linkOutput').innerHTML = `<a href="${url}" target="_blank">${url}</a>`;
+    // 링크 생성
+    document.getElementById('generate').onclick=async()=>{
+      const title=document.getElementById('docTitle').value;
+      const receiver=document.getElementById('receiver').value;
+      if(!title||!receiver||!pdfBase64){alert('제목, 이메일, PDF업로드 후 클릭');return;}
+      const id=Math.random().toString(36).substr(2,10);
+      await setDoc(doc(db,'signRequests',id),{docTitle:title,receiver,pdfBase64,posX,posY,page:posPage,createdAt:Date.now()});
+      const url=`${window.location.origin}/sign.html?id=${id}`;
+      document.getElementById('linkOutput').innerHTML=`<a href="${url}" target="_blank">${url}</a>`;
     };
   </script>
 </body>

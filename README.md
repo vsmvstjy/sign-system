@@ -1,5 +1,4 @@
-# Sign System v2 Rectangular Marker (Relative)
+# Sign System v2 Drag Adjustment
 
-- Marker as rectangle with '서명' text, positioned relative to canvas wrapper.
-- Firebase Firestore integration.
-- Sign page unchanged from v2.
+- Click to place marker, then drag marker to adjust exact position.
+- No manual offset coding needed.
