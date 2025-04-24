@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>문서 업로드 및 서명 위치 지정</title>
   <style>
     canvas { border: 1px solid #ccc; margin: 10px 0; }
@@ -19,53 +19,47 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
   <script>
-    // IndexedDB helper
-    function openDB() {
-      return new Promise((resolve, reject) => {
-        const req = indexedDB.open('SignDB', 1);
-        req.onupgradeneeded = () => {
-          req.result.createObjectStore('docs', { keyPath: 'id' });
-        };
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-      });
-    }
-    async function saveDoc(doc) {
-      const db = await openDB();
-      const tx = db.transaction('docs', 'readwrite');
-      tx.objectStore('docs').put(doc);
-      return tx.complete;
-    }
-    // PDF preview
+    let clickPos = null;
+    let pdfBase64 = '';
     const canvas = document.getElementById('pdfCanvas');
     const ctx = canvas.getContext('2d');
-    let clickPos = null, pdfBase64 = '';
+
     document.getElementById('pdfFile').addEventListener('change', e => {
       const file = e.target.files[0];
       const reader = new FileReader();
       reader.onload = async () => {
         pdfBase64 = reader.result.split(',')[1];
-        const pdf = await pdfjsLib.getDocument({ data: Uint8Array.from(atob(pdfBase64), c=>c.charCodeAt(0)) }).promise;
+        const raw = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
+        // PDF.js worker setup
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+        const pdf = await pdfjsLib.getDocument({ data: raw }).promise;
         const page = await pdf.getPage(1);
-        const vp = page.getViewport({ scale: 1 });
-        canvas.width = vp.width; canvas.height = vp.height;
-        await page.render({ canvasContext: ctx, viewport: vp }).promise;
+        const viewport = page.getViewport({ scale: 1 });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: ctx, viewport }).promise;
       };
       reader.readAsDataURL(file);
     });
+
     canvas.addEventListener('click', e => {
       const rect = canvas.getBoundingClientRect();
       clickPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-      alert(`서명 위치: x=${clickPos.x}, y=${clickPos.y}`);
+      alert(`서명 위치 지정됨: x=${clickPos.x}, y=${clickPos.y}`);
     });
-    async function generateLink() {
+
+    function generateLink() {
       const title = document.getElementById('docTitle').value;
       const receiver = document.getElementById('receiver').value;
-      if(!title||!receiver||!pdfBase64||!clickPos) return alert('모든 항목 입력 및 위치 지정 필요');
-      const id = Math.random().toString(36).substr(2,10);
-      await saveDoc({ id, docTitle: title, receiver, pdfBase64, posX: clickPos.x, posY: clickPos.y });
+      if (!title || !receiver || !pdfBase64 || !clickPos) {
+        alert('모든 항목과 서명 위치 지정이 필요합니다.');
+        return;
+      }
+      const id = Math.random().toString(36).substring(2, 10);
+      const data = { id, docTitle: title, receiver, pdfBase64, posX: clickPos.x, posY: clickPos.y };
+      localStorage.setItem('signpos:' + id, JSON.stringify(data));
       document.getElementById('linkOutput').innerHTML =
-        `<a href="sign.html?id=${id}" target="_blank">링크: sign.html?id=${id}</a>`;
+        `<a href="sign.html?id=${id}" target="_blank">서명 링크: sign.html?id=${id}</a>`;
     }
   </script>
 </body>

@@ -2,64 +2,118 @@
 <html lang="ko">
 <head><meta charset="UTF-8"><title>전자 서명</title>
   <style>
-    #pdfCanvas, #signaturePad { border:1px solid #ccc; display:block; margin:10px auto; }
-    input, button { display:block; margin:10px auto; padding:10px; width:90%; max-width:400px; }
+    #pdfCanvas, #signaturePad {
+      border:1px solid #ccc;
+      display:block;
+      margin:10px auto;
+    }
+    input, button {
+      display:block;
+      margin:10px auto;
+      padding:10px;
+      width:90%;
+      max-width:400px;
+    }
   </style>
 </head>
 <body>
   <h2>전자서명</h2><p id="docTitle"></p>
   <canvas id="pdfCanvas" width="600" height="800"></canvas>
   <input type="text" id="userName" placeholder="서명자 이름"><br>
-  <canvas id="signaturePad" width="400" height="200"></canvas>
+  <canvas id="signaturePad" width="400" height="200" style="width:400px; height:200px;"></canvas>
   <button onclick="clearSig()">서명 지우기</button>
   <button onclick="startAuth()">Google 로그인 및 제출</button>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <script>
+    // Setup PDF.js worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+  </script>
   <script src="https://apis.google.com/js/api.js"></script>
   <script>
-    // IndexedDB fetch
-    function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open('SignDB',1);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
-    async function getDoc(id){const db=await openDB();return new Promise((res,rej)=>{const tx=db.transaction('docs','readonly');const req=tx.objectStore('docs').get(id);req.onsuccess=()=>res(req.result);req.onerror=()=>rej(req.error);});}
-    (async()=>{ const id=new URLSearchParams(location.search).get('id'); const data=await getDoc(id); if(!data)return document.body.innerHTML='<h3>잘못된 링크</h3>';
-      document.getElementById('docTitle').innerText='문서 제목: '+data.docTitle;
-      const pdfCanvas=document.getElementById('pdfCanvas'), ctx=pdfCanvas.getContext('2d');
-      const raw=Uint8Array.from(atob(data.pdfBase64),c=>c.charCodeAt(0));
-      const pdf=await pdfjsLib.getDocument({data:raw}).promise;
-      const page=await pdf.getPage(1);const vp=page.getViewport({scale:1});
-      pdfCanvas.width=vp.width;pdfCanvas.height=vp.height;
-      await page.render({canvasContext:ctx,viewport:vp}).promise;
-      // signature canvas
-      const sigCanvas=document.getElementById('signaturePad'), sctx=sigCanvas.getContext('2d'); let drawing=false;
-      sigCanvas.addEventListener('mousedown',e=>{drawing=true; sctx.beginPath(); sctx.moveTo(e.offsetX,e.offsetY);});
-      sigCanvas.addEventListener('mousemove',e=>drawing&&(sctx.lineTo(e.offsetX,e.offsetY),sctx.stroke()));
-      sigCanvas.addEventListener('mouseup',()=>drawing=false);
-      sigCanvas.addEventListener('mouseout',()=>drawing=false);
-      window.clearSig=()=>sctx.clearRect(0,0,sigCanvas.width,sigCanvas.height);
-      window.startAuth=()=>google.accounts.oauth2.initTokenClient({
+    async function init() {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+      const data = JSON.parse(localStorage.getItem('signpos:' + id));
+      if (!data) {
+        document.body.innerHTML = '<h3>잘못된 링크입니다.</h3>';
+        return;
+      }
+      document.getElementById('docTitle').innerText = '문서 제목: ' + data.docTitle;
+
+      // Render PDF
+      const pdfCanvas = document.getElementById('pdfCanvas');
+      const pdfCtx = pdfCanvas.getContext('2d');
+      const raw = Uint8Array.from(atob(data.pdfBase64), c=>c.charCodeAt(0));
+      const pdf = await pdfjsLib.getDocument({ data: raw }).promise;
+      const page = await pdf.getPage(1);
+      const vp = page.getViewport({ scale: 1 });
+      pdfCanvas.width = vp.width;
+      pdfCanvas.height = vp.height;
+      await page.render({ canvasContext: pdfCtx, viewport: vp }).promise;
+
+      // Signature canvas
+      const sigCanvas = document.getElementById('signaturePad');
+      const sigCtx = sigCanvas.getContext('2d');
+      let drawing=false;
+      sigCanvas.onmousedown = e=>{ drawing=true; sigCtx.beginPath(); sigCtx.moveTo(e.offsetX,e.offsetY); };
+      sigCanvas.onmousemove = e=> drawing && (sigCtx.lineTo(e.offsetX,e.offsetY), sigCtx.stroke());
+      sigCanvas.onmouseup = ()=> drawing=false;
+      sigCanvas.onmouseout = ()=> drawing=false;
+      window.clearSig = ()=> sigCtx.clearRect(0,0,sigCanvas.width,sigCanvas.height);
+      window.startAuth = ()=> google.accounts.oauth2.initTokenClient({
         client_id:'972595541590-k962h1slhqu6cm1r5fhp9nvdd8hu21vk.apps.googleusercontent.com',
         scope:'https://www.googleapis.com/auth/gmail.send',
-        callback:tok=>sendEmail(tok.access_token,data)
+        callback: tok=> sendEmail(tok.access_token)
       }).requestAccessToken();
-    })();
-
-    async function sendEmail(token,data){
-      const name=document.getElementById('userName').value; if(!name)return alert('이름 입력');
-      const sigCanvas=document.getElementById('signaturePad'), sigBlob=await(fetch(sigCanvas.toDataURL('image/png')).then(r=>r.blob()));
-      const sigB=await fileToBase64(sigBlob), pdfB=data.pdfBase64;
-      const body=["MIME-Version: 1.0","Content-Type: multipart/mixed; boundary="B"",
-        `To: ${data.receiver}`,`Subject: [전자서명 제출] ${data.docTitle} - ${name}`,"",
-        "--B","Content-Type: text/plain; charset=UTF-8","","본인은 첨부된 "${data.docTitle}" 문서를 열람하였고, 이에 동의하여 아래와 같이 서명합니다.\n\n- 제출자 이름: ${name}\n- 제출 일시: ${new Date().toLocaleString()}","",
-        "--B","Content-Type: application/pdf","Content-Disposition: attachment; filename="document.pdf"","Content-Transfer-Encoding: base64","",pdfB,"",
-        "--B","Content-Type: image/png","Content-Disposition: attachment; filename="signature.png"","Content-Transfer-Encoding: base64","",sigB,"--B--"
-      ].join("\r\n");
-      gapi.load("client",()=>gapi.client.init({discoveryDocs:["https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest"]}).then(()=>{
-        gapi.client.gmail.users.messages.send({userId:"me",resource:{raw:btoa(unescape(encodeURIComponent(body))).replace(/\+/g,'-').replace(/\//g,'_')}}).then(()=>{
-          alert('제출 완료');
-          clearSig();
-        });
-      }));
     }
-    function fileToBase64(f){return new Promise((r,rej)=>{const rd=new FileReader();rd.onload=()=>r(rd.result.split(',')[1]);rd.onerror=rej;rd.readAsDataURL(f);});}
+
+    async function sendEmail(token) {
+      const name = document.getElementById('userName').value;
+      if (!name) return alert('이름을 입력해주세요.');
+      const data = JSON.parse(localStorage.getItem('signpos:' + new URLSearchParams(window.location.search).get('id')));
+      const sigCanvas = document.getElementById('signaturePad');
+      const sigBlob = await (await fetch(sigCanvas.toDataURL('image/png')).blob()).arrayBuffer();
+      const sigB = btoa(String.fromCharCode(...new Uint8Array(sigBlob)));
+      const pdfB = data.pdfBase64;
+      const boundary='BOUNDARY';
+      const bodyParts=[
+        'MIME-Version: 1.0',
+        'Content-Type: multipart/mixed; boundary="'+boundary+'"',
+        'To: '+data.receiver,
+        'Subject: [전자서명 제출] '+data.docTitle+' - '+name,
+        '',
+        '--'+boundary,
+        'Content-Type: text/plain; charset=UTF-8',
+        '',
+        '본인은 첨부된 "'+data.docTitle+'" 문서를 열람하였고, 이에 동의하여 아래와 같이 서명합니다.\n\n- 제출자 이름: '+name+'\n- 제출 일시: '+new Date().toLocaleString(),
+        '',
+        '--'+boundary,
+        'Content-Type: application/pdf',
+        'Content-Disposition: attachment; filename="document.pdf"',
+        'Content-Transfer-Encoding: base64',
+        '',
+        pdfB,
+        '',
+        '--'+boundary,
+        'Content-Type: image/png',
+        'Content-Disposition: attachment; filename="signature.png"',
+        'Content-Transfer-Encoding: base64',
+        '',
+        sigB,
+        '--'+boundary+'--'
+      ].join("\r\n");
+      gapi.load('client',()=>{
+        gapi.client.init({discoveryDocs:['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest']})
+          .then(()=>gapi.client.gmail.users.messages.send({
+            userId:'me',
+            resource:{raw:btoa(unescape(encodeURIComponent(bodyParts))).replace(/\+/g,'-').replace(/\//g,'_')}
+          }))
+          .then(()=>alert('제출 완료'));
+      });
+    }
+
+    init();
   </script>
 </body>
 </html>
