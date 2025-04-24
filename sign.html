@@ -24,9 +24,10 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://apis.google.com/js/api.js"></script>
   <script>
-    let data, pdfDoc, currentPage=1;
-    const canvas=document.getElementById('pdfCanvas'), ctx=canvas.getContext('2d');
-    window.clearSig=()=>document.getElementById('signaturePad').getContext('2d').clearRect(0,0,400,200);
+    let data,pdfDoc,pageNumber;
+    const pdfCanvas=document.getElementById('pdfCanvas'), pdfCtx=pdfCanvas.getContext('2d');
+    const sigCanvas=document.getElementById('signaturePad'), sigCtx=sigCanvas.getContext('2d');
+    function clearSig(){ sigCtx.clearRect(0,0,sigCanvas.width,sigCanvas.height); }
     window.startAuth=()=>google.accounts.oauth2.initTokenClient({
       client_id:'972595541590-k962h1slhqu6cm1r5fhp9nvdd8hu21vk.apps.googleusercontent.com',
       scope:'https://www.googleapis.com/auth/gmail.send',
@@ -35,22 +36,28 @@
     async function init(){
       const id=new URLSearchParams(location.search).get('id');
       data=JSON.parse(localStorage.getItem('signpos:'+id));
-      if(!data){document.body.innerHTML='<h3>잘못된 링크입니다.</h3>';return;}
+      if(!data){ document.body.innerHTML='<h3>잘못된 링크입니다.</h3>'; return; }
       document.getElementById('docTitle').innerText=data.docTitle;
       const raw=Uint8Array.from(atob(data.pdfBase64),c=>c.charCodeAt(0));
       pdfDoc=await pdfjsLib.getDocument({data:raw}).promise;
-      const page=await pdfDoc.getPage(data.page);
-      const vp=page.getViewport({scale:1.2});
-      canvas.width=vp.width;canvas.height=vp.height;
-      await page.render({canvasContext:ctx,viewport:vp}).promise;
+      pageNumber=data.page;
+      const page=await pdfDoc.getPage(pageNumber), vp=page.getViewport({scale:1.2});
+      pdfCanvas.width=vp.width; pdfCanvas.height=vp.height;
+      await page.render({canvasContext:pdfCtx,viewport:vp}).promise;
+      // signature handlers
+      let drawing=false;
+      sigCanvas.onmousedown=e=>{ drawing=true; sigCtx.beginPath(); sigCtx.moveTo(e.offsetX,e.offsetY); };
+      sigCanvas.onmousemove=e=> drawing&&(sigCtx.lineTo(e.offsetX,e.offsetY), sigCtx.stroke());
+      sigCanvas.onmouseup=()=>drawing=false;
+      sigCanvas.onmouseout=()=>drawing=false;
     }
     async function sendEmail(token){
       const name=document.getElementById('userName').value;
-      if(!name)return alert('이름을 입력하세요.');
+      if(!name)return alert('이름을 입력해주세요.');
       const raw=Uint8Array.from(atob(data.pdfBase64),c=>c.charCodeAt(0));
       const pdfDocLib=await PDFLib.PDFDocument.load(raw);
       const pages=pdfDocLib.getPages(), page=pages[data.page-1];
-      const pngBytes=Uint8Array.from(atob(document.getElementById('signaturePad').toDataURL('image/png').split(',')[1]),c=>c.charCodeAt(0));
+      const pngBytes=Uint8Array.from(atob(sigCanvas.toDataURL('image/png').split(',')[1]),c=>c.charCodeAt(0));
       const pngImg=await pdfDocLib.embedPng(pngBytes);
       const {width,height}=pngImg.scale(0.5);
       page.drawImage(pngImg,{x:data.posX,y:page.getHeight()-data.posY-height,width,height});
