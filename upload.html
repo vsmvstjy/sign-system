@@ -24,91 +24,90 @@
   <canvas id="pdfCanvas"></canvas><br>
   <button id="generate">링크 생성</button>
   <p id="linkOutput"></p>
-  
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-  <script>
-    pdfjsLib.GlobalWorkerOptions.workerSrc =
-        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
-  </script>
+  <script>pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';</script>
   <script type="module">
     import { db } from './firebase-config.js';
     import { doc, setDoc } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
-    
+
     let pdfDoc, currentPage=1, totalPages=0, pdfBase64='';
     let posX=0, posY=0, posPage=1;
     const canvas=document.getElementById('pdfCanvas'), ctx=canvas.getContext('2d');
     const pageInfo=document.getElementById('pageInfo');
-    
+
+    // Upload PDF
     document.getElementById('pdfFile').addEventListener('change', e => {
-      const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onload = async () => {
-        pdfBase64 = reader.result.split(',')[1];
-        const raw = Uint8Array.from(atob(pdfBase64), c=>c.charCodeAt(0));
-        pdfDoc = await pdfjsLib.getDocument({data:raw}).promise;
-        totalPages = pdfDoc.numPages; currentPage=1;
+      const file=e.target.files[0];
+      const reader=new FileReader();
+      reader.onload=async()=>{
+        pdfBase64=reader.result.split(',')[1];
+        const raw=Uint8Array.from(atob(pdfBase64),c=>c.charCodeAt(0));
+        pdfDoc=await pdfjsLib.getDocument({data:raw}).promise;
+        totalPages=pdfDoc.numPages; currentPage=1;
         await renderPage(currentPage);
       };
       reader.readAsDataURL(file);
     });
-    
-    const marker = (() => {
-      const m = document.createElement('div');
-      Object.assign(m.style, {
-        position:'absolute', width:'32px', height:'32px',
-        border:'3px dashed #007bff', borderRadius:'50%', display:'none', pointerEvents:'none'
+
+    // Rectangle marker
+    const marker=(()=>{
+      const m=document.createElement('div');
+      Object.assign(m.style,{
+        position:'absolute', width:'120px', height:'40px',
+        border:'2px dashed #007bff', background:'rgba(255,255,255,0.7)',
+        color:'#007bff', fontWeight:'bold', fontSize:'16px',
+        display:'none', alignItems:'center', justifyContent:'center',
+        textAlign:'center', pointerEvents:'none', zIndex:'1000'
       });
+      m.innerText='서명';
       document.body.appendChild(m);
       return m;
     })();
-    
-    async function renderPage(n) {
-      currentPage = n;
-      const page = await pdfDoc.getPage(n);
-      const vp = page.getViewport({scale:1.2});
+
+    // Render page
+    async function renderPage(n){
+      currentPage=n;
+      const page=await pdfDoc.getPage(n);
+      const vp=page.getViewport({scale:1.2});
       canvas.width=vp.width; canvas.height=vp.height;
-      await page.render({canvasContext:ctx, viewport:vp}).promise;
-      pageInfo.textContent = `Page ${n}/${totalPages}`;
-      if(n===posPage) {
-        const rawVp = page.getViewport({scale:1});
-        const scaleX = vp.width/rawVp.width;
-        const scaleY = vp.height/rawVp.height;
-        const mx = posX * scaleX;
-        const my = posY * scaleY;
-        const rect = canvas.getBoundingClientRect();
-        marker.style.left = `${rect.left + mx - 16}px`;
-        marker.style.top  = `${rect.top  + my - 16}px`;
-        marker.style.display = 'block';
+      await page.render({canvasContext:ctx,viewport:vp}).promise;
+      pageInfo.textContent=`Page ${n}/${totalPages}`;
+
+      if(n===posPage){
+        const rawVp=page.getViewport({scale:1});
+        const scaleX=vp.width/rawVp.width, scaleY=vp.height/rawVp.height;
+        const mx=posX*scaleX, my=posY*scaleY;
+        const rect=canvas.getBoundingClientRect();
+        const MARKER_W=120, MARKER_H=40;
+        marker.style.left=`${rect.left+mx-MARKER_W/2}px`;
+        marker.style.top=`${rect.top+my-MARKER_H/2}px`;
+        marker.style.display='flex';
       } else {
-        marker.style.display = 'none';
+        marker.style.display='none';
       }
     }
-    
-    document.getElementById('prevPage').onclick = ()=>{ if(currentPage>1) renderPage(--currentPage); };
-    document.getElementById('nextPage').onclick = ()=>{ if(currentPage<totalPages) renderPage(++currentPage); };
-    
-    canvas.addEventListener('click', e => {
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left, y = e.clientY - rect.top;
-      // fuzzy: marker center
-      if(posPage && marker.style.display==='block') {
-        const centerX = parseFloat(marker.style.left) - rect.left + 16;
-        const centerY = parseFloat(marker.style.top) - rect.top + 16;
-        if(Math.hypot(x-centerX, y-centerY) <= 60) {
-          startAuth(); 
-          return;
-        }
-      }
-      // not fuzzy: ignore
+
+    // Nav
+    document.getElementById('prevPage').onclick=()=>{ if(currentPage>1) renderPage(--currentPage); };
+    document.getElementById('nextPage').onclick=()=>{ if(currentPage<totalPages) renderPage(++currentPage); };
+
+    // Set position
+    canvas.addEventListener('click', e=>{
+      const rect=canvas.getBoundingClientRect();
+      posX=e.clientX-rect.left; posY=e.clientY-rect.top;
+      posPage=currentPage;
+      renderPage(currentPage);
     });
-    
-    document.getElementById('generate').onclick = async ()=>{
+
+    // Generate link
+    document.getElementById('generate').onclick=async()=>{
       const title=document.getElementById('docTitle').value;
       const receiver=document.getElementById('receiver').value;
       if(!title||!receiver||!pdfBase64) return alert('모두 입력 후 위치 클릭');
-      const id = Math.random().toString(36).substr(2,10);
-      await setDoc(doc(db,'signRequests',id), {
-        docTitle: title, receiver, pdfBase64, posX, posY, page: posPage, createdAt: Date.now()
+      const id=Math.random().toString(36).substr(2,10);
+      await setDoc(doc(db,'signRequests',id),{
+        docTitle:title, receiver, pdfBase64, posX, posY, page:posPage, createdAt:Date.now()
       });
       const url=`${window.location.origin}/sign.html?id=${id}`;
       document.getElementById('linkOutput').innerHTML=`<a href="${url}" target="_blank">${url}</a>`;

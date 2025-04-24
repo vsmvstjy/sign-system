@@ -1,12 +1,7 @@
-# Sign System Updated
+# Sign System v2 with Rectangle Marker
 
-- Firebase integration
-- Persistent marker on upload
-- Full-screen PDF view on sign page
-- Magnetized click to open large modal
-- Enlarged marker and signature pad
-- Accurate coordinate mapping
-- Mouse & touch support
-- Gmail API email send
+- Firebase integration (Firestore)
+- Upload page: click to set rectangle labeled "서명"
+- Sign page: PDF preview + signature pad + Gmail send
 
-Deploy: push to GitHub -> Vercel automatic deploy.
+Next: test marker placement, then enhance modals.
