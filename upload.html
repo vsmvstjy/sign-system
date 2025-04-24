@@ -2,16 +2,20 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>문서 업로드 및 서명 위치 지정</title>
+  <title>문서 업로드 및 서명 위치 지정 (관리자)</title>
   <style>
     body { font-family: sans-serif; padding:20px; }
-    canvas { border: 1px solid #ccc; margin: 10px 0; }
-    input, button { margin: 5px 0; padding: 8px; width: 100%; max-width:500px; font-size:16px; }
+    canvas { border:1px solid #ccc; margin:10px 0; }
+    #nav, #adjustNav { text-align:center; margin:10px; }
+    #nav button, #adjustNav button { margin:0 5px; padding:8px 12px; }
+    #canvasContainer { position:relative; display:inline-block; }
+    #marker { position:absolute; width:20px; height:20px; border:2px dashed red; border-radius:50%; pointer-events:none; }
+    input, button { margin:10px auto; padding:10px; width:90%; max-width:500px; display:block; }
     #linkOutput a { word-break: break-all; }
   </style>
 </head>
 <body>
-  <h2>문서 업로드 및 서명 위치 지정</h2>
+  <h2>문서 업로드 및 서명 위치 지정 (관리자 전용)</h2>
   <input type="text" id="docTitle" placeholder="문서 제목"><br>
   <input type="email" id="receiver" placeholder="회신 받을 이메일"><br>
   <input type="file" id="pdfFile" accept="application/pdf"><br>
@@ -20,51 +24,74 @@
     <span id="pageInfo">Page 0/0</span>
     <button id="nextPage">다음 페이지</button>
   </div>
-  <canvas id="pdfCanvas" style="max-width:100%;"></canvas><br>
+  <div id="canvasContainer">
+    <canvas id="pdfCanvas" style="max-width:100%;"></canvas>
+    <div id="marker" style="display:none;"></div>
+  </div>
+  <div id="adjustNav" style="display:none;">
+    <button onclick="moveMarker(-5,0)">◀︎</button>
+    <button onclick="moveMarker(5,0)">▶︎</button>
+    <button onclick="moveMarker(0,-5)">▲</button>
+    <button onclick="moveMarker(0,5)">▼</button>
+    <span>(위치 조절)</span>
+  </div>
   <button onclick="generateLink()">링크 생성</button>
   <p id="linkOutput"></p>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
   <script>
     pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
-    let pdfDoc, currentPage=1, totalPages=0, pdfBase64='', clickPos=null, clickPage=null;
-    const canvas=document.getElementById('pdfCanvas'), ctx=canvas.getContext('2d');
-    const pageInfo=document.getElementById('pageInfo');
-    document.getElementById('pdfFile').addEventListener('change',e=>{
-      const file=e.target.files[0];
-      const reader=new FileReader();
-      reader.onload=async()=>{
-        pdfBase64=reader.result.split(',')[1];
-        const raw=Uint8Array.from(atob(pdfBase64),c=>c.charCodeAt(0));
-        pdfDoc=await pdfjsLib.getDocument({data:raw}).promise;
-        totalPages=pdfDoc.numPages; currentPage=1;
+    let pdfDoc, currentPage, totalPages, pdfBase64='', posX=0, posY=0, posPage=1;
+    const canvas = document.getElementById('pdfCanvas'), ctx = canvas.getContext('2d');
+    const marker = document.getElementById('marker'), adjustNav = document.getElementById('adjustNav');
+    document.getElementById('pdfFile').addEventListener('change', e => {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = async () => {
+        pdfBase64 = reader.result.split(',')[1];
+        const raw = Uint8Array.from(atob(pdfBase64), c=>c.charCodeAt(0));
+        pdfDoc = await pdfjsLib.getDocument({data:raw}).promise;
+        totalPages = pdfDoc.numPages; currentPage = 1;
         renderPage(currentPage);
       };
       reader.readAsDataURL(file);
     });
-    async function renderPage(n){
-      const page=await pdfDoc.getPage(n), vp=page.getViewport({scale:1.2});
-      canvas.width=vp.width; canvas.height=vp.height;
+    async function renderPage(n) {
+      const page = await pdfDoc.getPage(n);
+      const vp = page.getViewport({scale:1.2});
+      canvas.width = vp.width; canvas.height = vp.height;
       await page.render({canvasContext:ctx,viewport:vp}).promise;
-      pageInfo.textContent=`Page ${n}/${totalPages}`;
+      document.getElementById('pageInfo').textContent = `Page ${n}/${totalPages}`;
+      // hide marker if different page
+      if(n !== posPage) marker.style.display='none', adjustNav.style.display='none';
+      posPage = n;
     }
-    document.getElementById('prevPage').onclick=()=>{ if(currentPage>1) renderPage(--currentPage); };
-    document.getElementById('nextPage').onclick=()=>{ if(currentPage<totalPages) renderPage(++currentPage); };
-    canvas.onclick=e=>{
-      const rect=canvas.getBoundingClientRect();
-      clickPos={x:e.clientX-rect.left,y:e.clientY-rect.top};
-      clickPage=currentPage;
-      alert(`위치 지정: 페이지 ${clickPage}, x=${clickPos.x.toFixed(0)}, y=${clickPos.y.toFixed(0)}`);
+    document.getElementById('prevPage').onclick = ()=>{ if(currentPage>1) renderPage(--currentPage); };
+    document.getElementById('nextPage').onclick = ()=>{ if(currentPage<totalPages) renderPage(++currentPage); };
+    canvas.onclick = e => {
+      const rect = canvas.getBoundingClientRect();
+      posX = e.clientX - rect.left; posY = e.clientY - rect.top;
+      posPage = currentPage;
+      marker.style.display = 'block';
+      marker.style.left = rect.left + posX - 10 + 'px';
+      marker.style.top = rect.top + posY - 10 + 'px';
+      adjustNav.style.display = 'block';
     };
-    function generateLink(){
-      const title=document.getElementById('docTitle').value;
-      const receiver=document.getElementById('receiver').value;
-      if(!title||!receiver||!pdfBase64||!clickPos) return alert('모든 정보를 입력하고 위치를 지정하세요.');
-      const id=Math.random().toString(36).substr(2,10);
-      const data={id,docTitle:title,receiver,pdfBase64,posX:clickPos.x,posY:clickPos.y,page:clickPage};
-      localStorage.setItem('signpos:'+id,JSON.stringify(data));
-      const url=window.location.origin+'/sign.html?id='+id;
-      document.getElementById('linkOutput').innerHTML=`<a href="${url}" target="_blank">${url}</a>`;
+    function moveMarker(dx,dy) {
+      posX += dx; posY += dy;
+      const rect = canvas.getBoundingClientRect();
+      marker.style.left = rect.left + posX - 10 + 'px';
+      marker.style.top = rect.top + posY - 10 + 'px';
+    }
+    function generateLink() {
+      const title = document.getElementById('docTitle').value;
+      const receiver = document.getElementById('receiver').value;
+      if(!title||!receiver||!pdfBase64) return alert('모든 항목 입력 후 위치를 지정하세요.');
+      const id = Math.random().toString(36).substr(2,10);
+      const data = {id,docTitle:title,receiver,pdfBase64,posX,posY,page:posPage};
+      localStorage.setItem('signpos:'+id, JSON.stringify(data));
+      const url = window.location.origin + '/sign.html?id=' + id;
+      document.getElementById('linkOutput').innerHTML = `<a href="${url}" target="_blank">${url}</a>`;
     }
   </script>
 </body>

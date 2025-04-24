@@ -2,37 +2,17 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>전자 서명 (조정 가능)</title>
+  <title>전자 서명</title>
   <style>
-    body{font-family:sans-serif;padding:20px;text-align:center;}
-    #nav, #adjustNav{margin:10px;}
-    #nav button,#adjustNav button{margin:0 5px;padding:8px 12px;}
-    #canvasContainer{position:relative;display:inline-block;}
-    #pdfCanvas{border:1px solid #ccc;cursor:crosshair;}
-    #marker{position:absolute;width:20px;height:20px;border:2px dashed red;border-radius:50%;pointer-events:none;}
-    #signaturePad{border:1px solid #ccc;margin-top:10px;}
+    body{font-family:sans-serif;text-align:center;padding:20px;}
+    canvas{border:1px solid #ccc;display:block;margin:10px auto;}
     input,button{margin:10px auto;padding:10px;width:90%;max-width:400px;}
   </style>
 </head>
 <body>
-  <h2>전자 서명 (조정 가능)</h2>
+  <h2>전자 서명</h2>
   <p id="docTitle"></p>
-  <div id="nav">
-    <button id="prevPage">이전 페이지</button>
-    <span id="pageInfo"></span>
-    <button id="nextPage">다음 페이지</button>
-  </div>
-  <div id="canvasContainer">
-    <canvas id="pdfCanvas"></canvas>
-    <div id="marker"></div>
-  </div><br>
-  <div id="adjustNav">
-    <button onclick="moveMarker(-5,0)">◀︎</button>
-    <button onclick="moveMarker(5,0)">▶︎</button>
-    <button onclick="moveMarker(0,-5)">▲</button>
-    <button onclick="moveMarker(0,5)">▼</button>
-    <span>(위치 조절)</span>
-  </div>
+  <canvas id="pdfCanvas"></canvas>
   <input type="text" id="userName" placeholder="서명자 이름"><br>
   <canvas id="signaturePad" width="400" height="200" style="width:400px;height:200px;"></canvas><br>
   <button onclick="clearSig()">서명 지우기</button>
@@ -43,75 +23,52 @@
   <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://apis.google.com/js/api.js"></script>
-
   <script>
-    let pdfDoc, currentPage, totalPages, data;
+    let data, pdfDoc, currentPage=1;
     const canvas=document.getElementById('pdfCanvas'), ctx=canvas.getContext('2d');
-    const marker=document.getElementById('marker');
-
-    async function init(){
-      const id=new URLSearchParams(location.search).get('id');
-      data=JSON.parse(localStorage.getItem('signpos:'+id));
-      if(!data){document.body.innerHTML='<h3>잘못된 링크입니다.</h3>';return;}
-      document.getElementById('docTitle').innerText='문서: '+data.docTitle;
-      const raw=Uint8Array.from(atob(data.pdfBase64),c=>c.charCodeAt(0));
-      pdfDoc=await pdfjsLib.getDocument({data:raw}).promise;
-      totalPages=pdfDoc.numPages;currentPage=1;
-      renderPage(currentPage);
-      document.getElementById('prevPage').onclick=()=>currentPage>1&&renderPage(--currentPage);
-      document.getElementById('nextPage').onclick=()=>currentPage<totalPages&&renderPage(++currentPage);
-    }
-
-    async function renderPage(num){
-      const page=await pdfDoc.getPage(num), vp=page.getViewport({scale:1.2});
-      canvas.width=vp.width;canvas.height=vp.height;await page.render({canvasContext:ctx,viewport:vp}).promise;
-      document.getElementById('pageInfo').textContent=`${num}/${totalPages}`;
-      if(num===data.page){
-        marker.style.display='block';
-        marker.style.left=(canvas.offsetLeft+data.posX-10)+'px';
-        marker.style.top=(canvas.offsetTop+data.posY-10)+'px';
-      } else marker.style.display='none';
-    }
-
-    function moveMarker(dx,dy){
-      data.posX+=dx;data.posY+=dy;
-      renderPage(currentPage);
-    }
     window.clearSig=()=>document.getElementById('signaturePad').getContext('2d').clearRect(0,0,400,200);
-
     window.startAuth=()=>google.accounts.oauth2.initTokenClient({
       client_id:'972595541590-k962h1slhqu6cm1r5fhp9nvdd8hu21vk.apps.googleusercontent.com',
       scope:'https://www.googleapis.com/auth/gmail.send',
       callback:tok=>sendEmail(tok.access_token)
     }).requestAccessToken();
-
+    async function init(){
+      const id=new URLSearchParams(location.search).get('id');
+      data=JSON.parse(localStorage.getItem('signpos:'+id));
+      if(!data){document.body.innerHTML='<h3>잘못된 링크입니다.</h3>';return;}
+      document.getElementById('docTitle').innerText=data.docTitle;
+      const raw=Uint8Array.from(atob(data.pdfBase64),c=>c.charCodeAt(0));
+      pdfDoc=await pdfjsLib.getDocument({data:raw}).promise;
+      const page=await pdfDoc.getPage(data.page);
+      const vp=page.getViewport({scale:1.2});
+      canvas.width=vp.width;canvas.height=vp.height;
+      await page.render({canvasContext:ctx,viewport:vp}).promise;
+    }
     async function sendEmail(token){
-      const name=document.getElementById('userName').value; if(!name)return alert('이름 입력');
+      const name=document.getElementById('userName').value;
+      if(!name)return alert('이름을 입력하세요.');
       const raw=Uint8Array.from(atob(data.pdfBase64),c=>c.charCodeAt(0));
       const pdfDocLib=await PDFLib.PDFDocument.load(raw);
-      const pngDataUrl=document.getElementById('signaturePad').toDataURL('image/png');
-      const pngBytes=Uint8Array.from(atob(pngDataUrl.split(',')[1]),c=>c.charCodeAt(0));
+      const pages=pdfDocLib.getPages(), page=pages[data.page-1];
+      const pngBytes=Uint8Array.from(atob(document.getElementById('signaturePad').toDataURL('image/png').split(',')[1]),c=>c.charCodeAt(0));
       const pngImg=await pdfDocLib.embedPng(pngBytes);
-      const p=pdfDocLib.getPages()[data.page-1], {width,height}=pngImg.scale(0.5);
-      p.drawImage(pngImg,{x:data.posX,y:p.getHeight()-data.posY-height,width,height});
-      const signedBytes=await pdfDocLib.save(), signedBase64=btoa(String.fromCharCode(...signedBytes));
-      const subject=`[전자서명 제출] ${data.docTitle} - ${name}`;
-      const subjectEnc='=?UTF-8?B?'+btoa(unescape(encodeURIComponent(subject)))+'?=';
-      const bodyText=`본인은 첨부된 "${data.docTitle}" 문서를 열람하였고, 이에 동의하여 아래와 같이 서명합니다.\n\n- 제출자 이름: ${name}\n- 제출 일시: ${new Date().toLocaleString()}`;
-      const boundary='BOUNDARY'; let lines=[
+      const {width,height}=pngImg.scale(0.5);
+      page.drawImage(pngImg,{x:data.posX,y:page.getHeight()-data.posY-height,width,height});
+      const signed=await pdfDocLib.save();
+      const signedBase64=btoa(String.fromCharCode(...signed));
+      const subject='=?UTF-8?B?'+btoa(unescape(encodeURIComponent('[전자서명 제출] '+data.docTitle+' - '+name)))+'?=';
+      const bodyText='본인은 첨부된 "'+data.docTitle+'" 문서를 열람하였고, 이에 동의하여 아래와 같이 서명합니다.\n\n- 제출자 이름: '+name+'\n- 제출 일시: '+new Date().toLocaleString();
+      const boundary='BOUNDARY', lines=[
         'MIME-Version: 1.0','Content-Type: multipart/mixed; boundary="'+boundary+'"',
-        'To: '+data.receiver,'Subject: '+subjectEnc,'','--'+boundary,'Content-Type: text/plain; charset=UTF-8','',''+bodyText,'',
+        'To: '+data.receiver,'Subject: '+subject,'','--'+boundary,
+        'Content-Type: text/plain; charset=UTF-8','',''+bodyText,'',
         '--'+boundary,'Content-Type: application/pdf','Content-Disposition: attachment; filename="signed.pdf"','Content-Transfer-Encoding: base64','',''+signedBase64,'','--'+boundary+'--'
-      ]; const emailBody=lines.join('\r\n');
-      gapi.load('client',()=>gapi.client.init({
-        apiKey:'AIzaSyBdO8g3lJHfxoiSqgOWXp1q37zMkrkaBg4',
-        discoveryDocs:['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest']
-      }).then(()=>{
-        gapi.client.setToken({access_token:token});
-        return gapi.client.gmail.users.messages.send({userId:'me',resource:{raw:btoa(unescape(encodeURIComponent(emailBody))).replace(/\+/g,'-').replace(/\//g,'_')}});})
+      ];
+      const emailBody=lines.join('\r\n');
+      gapi.load('client',()=>gapi.client.init({apiKey:'AIzaSyBdO8g3lJHfxoiSqgOWXp1q37zMkrkaBg4',discoveryDocs:['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest']})
+        .then(()=>{gapi.client.setToken({access_token:token});return gapi.client.gmail.users.messages.send({userId:'me',resource:{raw:btoa(unescape(encodeURIComponent(emailBody))).replace(/\+/g,'-').replace(/\//g,'_')}});})
         .then(()=>alert('제출 완료')).catch(e=>{console.error(e);alert('전송 실패');}));
     }
-
     init();
   </script>
 </body>
