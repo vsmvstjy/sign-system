@@ -86,7 +86,7 @@
       if(n===posPage) {
         const rect=canvas.getBoundingClientRect();
         marker.style.left=`${rect.left + posX - 50}px`;
-        marker.style.top=`${rect.top + posY - 20 + 756}px`;
+        marker.style.top=`${rect.top + posY - 20 + 378}px`;
         marker.style.display='block';
       } else marker.style.display='none';
     }
@@ -101,7 +101,7 @@
       posPage = currentPage;
 
       marker.style.left = `${e.clientX - 50}px`;
-      marker.style.top = `${e.clientY - 20 + 756}px`;
+      marker.style.top = `${e.clientY - 20 + 378}px`;
       marker.style.display = 'block';
 
       renderPage(currentPage);
