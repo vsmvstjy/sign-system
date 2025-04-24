@@ -159,9 +159,9 @@
     const sigCtx = sigCanvas.getContext('2d');
 
     document.getElementById('clearSig').onclick = () => sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
-    document.getElementById('saveSig').onclick = async () => {
+    document.getElementById('saveSig').addEventListener('click', async () => {
       sigModal.style.display = 'none';
-      await sendSignedEmail(tokenGlobal);
+      await sendSignedEmail(tokenGlobal); });
     };
 
     let drawing = false;
