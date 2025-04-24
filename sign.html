@@ -77,7 +77,15 @@
       if (!name) return alert('이름을 입력해주세요.');
       const data = JSON.parse(localStorage.getItem('signpos:' + new URLSearchParams(window.location.search).get('id')));
       const sigCanvas = document.getElementById('signaturePad');
-      const sigBlob = await (await fetch(sigCanvas.toDataURL('image/png')).blob()).arrayBuffer();
+// 수정된 코드
+const sigDataUrl = sigCanvas.toDataURL("image/png");
+
+// Step1: fetch 로부터 Response 객체를 받아오고
+const response = await fetch(sigDataUrl);
+
+// Step2: Response.blob() 으로 Blob 추출
+const sigBlob = await response.blob();
+
       const sigB = btoa(String.fromCharCode(...new Uint8Array(sigBlob)));
       const pdfB = data.pdfBase64;
       const boundary='BOUNDARY';
