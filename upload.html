@@ -43,12 +43,12 @@
 
     let pdfDoc, currentPage=1, totalPages=0, pdfBase64='';
     let posX=0, posY=0, posPage=1;
+    let vpWidth=0, vpHeight=0;
     const canvas = document.getElementById('pdfCanvas'),
           wrapper = document.getElementById('canvasWrapper'),
           ctx = canvas.getContext('2d'),
           pageInfo = document.getElementById('pageInfo');
 
-    // PDF 업로드
     document.getElementById('pdfFile').addEventListener('change', e => {
       const file = e.target.files[0];
       const reader = new FileReader();
@@ -62,48 +62,69 @@
       reader.readAsDataURL(file);
     });
 
-    // Rectangle marker
     const marker = document.createElement('div');
     marker.className = 'marker';
     marker.innerText = '서명';
     wrapper.appendChild(marker);
 
-    // 페이지 렌더링
     async function renderPage(n) {
       currentPage = n;
       const page = await pdfDoc.getPage(n);
       const vp = page.getViewport({scale:1.2});
-      canvas.width = vp.width; canvas.height = vp.height;
-      canvas.style.width = vp.width + 'px';
-      canvas.style.height = vp.height + 'px';
+      vpWidth = vp.width; vpHeight = vp.height;
+      canvas.width = vpWidth; canvas.height = vpHeight;
+      canvas.style.width = vpWidth + 'px';
+      canvas.style.height = vpHeight + 'px';
       await page.render({canvasContext: ctx, viewport: vp}).promise;
       pageInfo.textContent = `Page ${n}/${totalPages}`;
       if (n === posPage) {
         const rawVp = page.getViewport({scale:1});
-        const scaleX = vp.width / rawVp.width,
-              scaleY = vp.height / rawVp.height;
-        const mx = posX * scaleX,
-              my = posY * scaleY;
+        const scaleX = vpWidth/rawVp.width;
+        const scaleY = vpHeight/rawVp.height;
+        const mx = posX*scaleX;
+        const my = posY*scaleY;
         const MARKER_W = 120, MARKER_H = 40;
         marker.style.left = (mx - MARKER_W/2) + 'px';
         marker.style.top  = (my - MARKER_H/2) + 'px';
-+ const offsetX = -10;   // 오른쪽으로 10px shift
-+ const offsetY = 3;   // 위로 5px shift (음수 값)
-+ marker.style.left = (mx - MARKER_W/2 + offsetX) + 'px';
-+ marker.style.top  = (my - MARKER_H/2 + offsetY) + 'px';
-
-        
         marker.style.display = 'flex';
+        enableMarkerDrag();
       } else {
         marker.style.display = 'none';
       }
     }
 
-    // 페이지 네비게이션
+    function enableMarkerDrag() {
+      let startX, startY;
+      function onMouseMove(e) {
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        startX = e.clientX; startY = e.clientY;
+        marker.style.left = parseFloat(marker.style.left) + dx + 'px';
+        marker.style.top  = parseFloat(marker.style.top)  + dy + 'px';
+      }
+      function onMouseUp() {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        // update posX,posY
+        const left = parseFloat(marker.style.left);
+        const top  = parseFloat(marker.style.top);
+        const mx = left + 60; // half marker width
+        const my = top  + 20; // half marker height
+        const rawX = mx * (canvas.width/vpWidth);
+        const rawY = my * (canvas.height/vpHeight);
+        posX = rawX; posY = rawY; posPage = currentPage;
+      }
+      marker.onmousedown = e => {
+        e.preventDefault();
+        startX = e.clientX; startY = e.clientY;
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+      };
+    }
+
     document.getElementById('prevPage').onclick = () => { if (currentPage>1) renderPage(--currentPage); };
     document.getElementById('nextPage').onclick = () => { if (currentPage<totalPages) renderPage(++currentPage); };
 
-    // 클릭 위치 저장
     canvas.addEventListener('click', e => {
       const rect = canvas.getBoundingClientRect();
       posX = e.clientX - rect.left;
@@ -112,7 +133,6 @@
       renderPage(currentPage);
     });
 
-    // 링크 생성
     document.getElementById('generate').onclick = async () => {
       const title = document.getElementById('docTitle').value;
       const receiver = document.getElementById('receiver').value;
