@@ -1,50 +1,24 @@
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>전자 서명</title>
   <style>
-    body { margin: 0; padding: 20px; font-family: sans-serif; background: #f9f9f9; }
-    #pdfContainer { position: relative; width: 100%; max-width: 800px; margin: 0 auto; }
-    canvas { display: block; width: 100%; height: auto; background: white; }
-    #marker {
-      position: absolute;
-      width: 100px;
-      height: 40px;
-      background-color: #fff8dc;
-      border: 2px dashed #ff5c5c;
-      border-radius: 6px;
-      display: none;
-      pointer-events: none;
-      text-align: center;
-      line-height: 40px;
-      font-weight: bold;
-      color: #ff5c5c;
-      font-size: 16px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-    }
-    .modal {
-      display: none;
-      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(0, 0, 0, 0.5); align-items: center; justify-content: center;
-    }
-    .modal-content {
-      background: #fff; padding: 20px; border-radius: 8px; text-align: center;
-    }
-    #sigCanvas { border: 1px solid #ccc; touch-action: none; }
-    button { margin: 10px; padding: 10px; }
+    body { margin:0; padding:0; overflow:hidden; font-family:sans-serif; }
+    #pdfContainer { position:relative; width:100vw; height:100vh; }
+    canvas { display:block; }
+    #pdfCanvas { width:100%; height:100%; }
+    #marker { position:absolute; width:20px; height:20px; border:2px dashed red; border-radius:50%; pointer-events:none; }
+    .modal { display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; }
+    .modal-content { background:#fff; padding:20px; border-radius:8px; text-align:center; }
+    #sigCanvas { border:1px solid #ccc; touch-action:none; }
+    button { margin:10px; padding:10px; }
   </style>
 </head>
 <body>
-  <div style="text-align:center; margin-bottom: 10px;">
-    <button id="prevPage">이전 페이지</button>
-    <span id="pageInfo">0 / 0</span>
-    <button id="nextPage">다음 페이지</button>
-  </div>
   <div id="pdfContainer">
     <canvas id="pdfCanvas"></canvas>
-    <div id="marker">서명</div>
+    <div id="marker"></div>
   </div>
   <div id="sigModal" class="modal">
     <div class="modal-content">
@@ -56,7 +30,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-  <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';</script>
+  <script>pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';</script>
   <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://apis.google.com/js/api.js"></script>
@@ -64,184 +38,108 @@
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
     import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
 
+    // firebaseConfig...
     const firebaseConfig = {
       apiKey: "AIzaSyDrkWBu5k-2nBHhZEHwgrBrPkWSKpro6po",
       authDomain: "sign-system-a8921.firebaseapp.com",
       projectId: "sign-system-a8921",
       storageBucket: "sign-system-a8921.appspot.com",
       messagingSenderId: "356422555230",
-      appId: "1:356422555230:web:5522aefcfc133d096286cf"
+      appId: "1:356422555230:web:5522aefcfc133d096286cf",
+      measurementId: "G-KD90T9QP1W"
     };
-
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    let data, pdfRef, currentPage = 1, totalPages = 0;
-    const canvas = document.getElementById('pdfCanvas');
-    const ctx = canvas.getContext('2d');
+    let data, pdfDoc, viewport;
+    const pdfCanvas = document.getElementById('pdfCanvas'), pdfCtx = pdfCanvas.getContext('2d');
     const marker = document.getElementById('marker');
-    const pageInfo = document.getElementById('pageInfo');
-
-    async function init() {
-      const params = new URLSearchParams(location.search);
-      const id = params.get('id');
-      const snap = await getDoc(doc(db, 'signRequests', id));
-      if (!snap.exists()) {
-        alert('잘못된 링크입니다.');
-        return;
-      }
-      data = snap.data();
-      const raw = Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0));
-      pdfRef = await pdfjsLib.getDocument({ data: raw }).promise;
-      totalPages = pdfRef.numPages;
-      currentPage = 1;
-      renderPage(currentPage);
-    }
-
-    async function renderPage(n) {
-      const page = await pdfRef.getPage(n);
-      const vp = page.getViewport({ scale: 1.5 });
-      canvas.width = vp.width;
-      canvas.height = vp.height;
-      await page.render({ canvasContext: ctx, viewport: vp }).promise;
-
-      pageInfo.innerText = `${n} / ${totalPages}`;
-
-      if (n === data.page) {
-        const mx = data.posX / vp.width * canvas.width;
-        const my = data.posY / vp.height * canvas.height;
-        marker.style.left = `${mx - 50}px`;
-        marker.style.top = `${my - 20}px`;
-        marker.style.display = 'block';
-      } else {
-        marker.style.display = 'none';
-      }
-    }
-
-    document.getElementById("prevPage").onclick = () => {
-      if (currentPage > 1) {
-        currentPage--;
-        renderPage(currentPage);
-      }
-    };
-    document.getElementById("nextPage").onclick = () => {
-      if (currentPage < totalPages) {
-        currentPage++;
-        renderPage(currentPage);
-      }
-    };
-
-    const canvasClickHandler = (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      const mx = parseFloat(marker.style.left) + 50;
-      const my = parseFloat(marker.style.top) + 20;
-      if (Math.hypot(x - mx, y - my) < 100 && currentPage === data.page) {
-        startAuth();
-      }
-    };
-    canvas.addEventListener('click', canvasClickHandler);
-
-    let tokenGlobal;
-    window.startAuth = () => google.accounts.oauth2.initTokenClient({
-      client_id: '972595541590-k962h1slhqu6cm1r5fhp9nvdd8hu21vk.apps.googleusercontent.com',
-      scope: 'https://www.googleapis.com/auth/gmail.send',
-      callback: tok => { tokenGlobal = tok.access_token; openModal(); }
-    }).requestAccessToken();
-
-    function openModal() {
-      sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
-      sigModal.style.display = 'flex';
-    }
-
     const sigModal = document.getElementById('sigModal');
-    const sigCanvas = document.getElementById('sigCanvas');
-    const sigCtx = sigCanvas.getContext('2d');
+    const sigCanvas = document.getElementById('sigCanvas'), sigCtx = sigCanvas.getContext('2d');
+    let drawing=false;
 
-    document.getElementById('clearSig').onclick = () => sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
-    document.getElementById('saveSig').onclick = async () => {
-      sigModal.style.display = 'none';
+    window.addEventListener('resize', ()=> drawPDF());
+    document.getElementById('clearSig').onclick = ()=> sigCtx.clearRect(0,0,sigCanvas.width,sigCanvas.height);
+    document.getElementById('saveSig').onclick = async ()=>{
+      sigModal.style.display='none';
       await sendEmail(tokenGlobal);
     };
 
-    let drawing = false;
-    sigCanvas.onmousedown = e => { drawing = true; sigCtx.beginPath(); sigCtx.moveTo(e.offsetX, e.offsetY); };
-    sigCanvas.onmousemove = e => { if (drawing) { sigCtx.lineTo(e.offsetX, e.offsetY); sigCtx.stroke(); } };
-    sigCanvas.onmouseup = () => drawing = false;
-    sigCanvas.onmouseout = () => drawing = false;
+    function openModal(){ sigCtx.clearRect(0,0,sigCanvas.width,sigCanvas.height); sigModal.style.display='flex'; }
 
-    sigCanvas.addEventListener('touchstart', e => {
-      e.preventDefault();
-      drawing = true;
-      const t = e.touches[0];
-      const r = sigCanvas.getBoundingClientRect();
-      sigCtx.beginPath();
-      sigCtx.moveTo(t.clientX - r.left, t.clientY - r.top);
-    });
+    async function init(){
+      const params = new URLSearchParams(location.search), id=params.get('id');
+      const snap = await getDoc(doc(db,'signRequests',id));
+      if(!snap.exists()){ alert('잘못된 링크'); return; }
+      data = snap.data();
+      drawPDF();
+    }
 
-    sigCanvas.addEventListener('touchmove', e => {
-      e.preventDefault();
-      if (drawing) {
-        const t = e.touches[0];
-        const r = sigCanvas.getBoundingClientRect();
-        sigCtx.lineTo(t.clientX - r.left, t.clientY - r.top);
-        sigCtx.stroke();
-      }
-    });
+    let tokenGlobal;
+    window.startAuth = ()=> google.accounts.oauth2.initTokenClient({
+      client_id:'972595541590-k962h1slhqu6cm1r5fhp9nvdd8hu21vk.apps.googleusercontent.com',
+      scope:'https://www.googleapis.com/auth/gmail.send',
+      callback:tok=>{ tokenGlobal=tok.access_token; openModal(); }
+    }).requestAccessToken();
 
-    sigCanvas.addEventListener('touchend', e => { e.preventDefault(); drawing = false; });
-
-    async function sendEmail(token) {
-      const name = prompt('이름을 입력하세요');
-      const pdfDocLib = await PDFLib.PDFDocument.load(Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0)));
-      const pngBytes = Uint8Array.from(atob(sigCanvas.toDataURL('image/png').split(',')[1]), c => c.charCodeAt(0));
-      const pngImg = await pdfDocLib.embedPng(pngBytes);
-      const { width, height } = pngImg.scale(0.5);
-
-      const pages = pdfDocLib.getPages();
-      const pageIndex = data.page - 1;
-
-      if (pageIndex >= pages.length) {
-        alert("서명할 페이지가 존재하지 않습니다.");
-        return;
-      }
-
-      const drawX = data.posX - 160;
-      const drawY = data.posY - 100;
-      pages[pageIndex].drawImage(pngImg, {
-        x: drawX,
-        y: pages[pageIndex].getHeight() - drawY - height,
-        width, height
-      });
-
-      const signed = await pdfDocLib.save();
-      const signedBase64 = btoa(String.fromCharCode(...signed));
-      const subject = '=?UTF-8?B?' + btoa(unescape(encodeURIComponent('[전자서명 제출] ' + data.docTitle + ' - ' + name))) + '?=';
-      const bodyText = `본인은 첨부된 "${data.docTitle}" 문서를 열람하였고, 이에 동의하여 아래와 같이 서명합니다.
-
-- 제출자 이름: ${name}
-- 제출 일시: ${new Date().toLocaleString()}`;
-      const boundary = 'BOUNDARY';
-      const lines = [
-        'MIME-Version: 1.0', `To: ${data.receiver}`, `Subject: ${subject}`,
-        'Content-Type: multipart/mixed; boundary=' + boundary, '',
-        '--' + boundary, 'Content-Type: text/plain; charset=UTF-8', '', bodyText, '',
-        '--' + boundary, 'Content-Type: application/pdf',
-        'Content-Disposition: attachment; filename="signed.pdf"',
-        'Content-Transfer-Encoding: base64', '', signedBase64, '--' + boundary + '--'
-      ];
-      const emailBody = lines.join('\r\n');
-      gapi.load('client', () => gapi.client.init({
-        apiKey: 'AIzaSyBdO8g3lJHfxoiSqgOWXp1q37zMkrkaBg4',
-        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest']
-      }).then(() => {
-        gapi.client.setToken({ access_token: token });
-        return gapi.client.gmail.users.messages.send({
-          userId: 'me',
-          resource: { raw: btoa(unescape(encodeURIComponent(emailBody))).replace(/\+/g, '-').replace(/\//g, '_') }
+    function drawPDF(){
+      pdfjsLib.getDocument({data:Uint8Array.from(atob(data.pdfBase64),c=>c.charCodeAt(0))})
+      .promise.then(d=>d.getPage(data.page)).then(page=>{
+        const rawVp=page.getViewport({scale:1});
+        const scale=window.innerWidth/rawVp.width;
+        viewport=page.getViewport({scale});
+        pdfCanvas.width=viewport.width; pdfCanvas.height=viewport.height;
+        page.render({canvasContext:pdfCtx,viewport}).promise.then(()=>{
+          // map marker
+          const mx = data.posX/ rawVp.width * viewport.width;
+          const my = data.posY/ rawVp.height * viewport.height;
+          const rect=pdfCanvas.getBoundingClientRect();
+          marker.style.left=`${rect.left+mx-10}px`;
+          marker.style.top=`${rect.top+my-10}px`;
+          marker.style.display='block';
         });
-      }).then(() => alert('제출 완료!')).catch(e => { console.error(e); alert('전송 실패'); }));
+      });
+      // click listener
+      pdfCanvas.onclick = e=>{
+        const rect=pdfCanvas.getBoundingClientRect();
+        const x=e.clientX-rect.left, y=e.clientY-rect.top;
+        const mx= parseFloat(marker.style.left)-rect.left+10;
+        const my= parseFloat(marker.style.top)-rect.top+10;
+        if(Math.hypot(x-mx,y-my)<50) startAuth();
+      };
+      // signature canvas events
+      sigCanvas.onmousedown=e=>{drawing=true; sigCtx.beginPath(); sigCtx.moveTo(e.offsetX,e.offsetY);};
+      sigCanvas.onmousemove=e=>{if(drawing){sigCtx.lineTo(e.offsetX,e.offsetY); sigCtx.stroke();}};
+      sigCanvas.onmouseup=e=>drawing=false;
+      sigCanvas.onmouseout=e=>drawing=false;
+      sigCanvas.addEventListener('touchstart',e=>{e.preventDefault();drawing=true; const t=e.touches[0]; const r=sigCanvas.getBoundingClientRect(); sigCtx.beginPath(); sigCtx.moveTo(t.clientX-r.left,t.clientY-r.top);});
+      sigCanvas.addEventListener('touchmove',e=>{e.preventDefault(); if(drawing){const t=e.touches[0]; const r=sigCanvas.getBoundingClientRect(); sigCtx.lineTo(t.clientX-r.left,t.clientY-r.top); sigCtx.stroke();}});
+      sigCanvas.addEventListener('touchend',e=>{e.preventDefault();drawing=false;});
+    }
+
+    async function sendEmail(token){
+      const name = prompt('이름을 입력하세요');
+      const pdfDocLib=await PDFLib.PDFDocument.load(Uint8Array.from(atob(data.pdfBase64),c=>c.charCodeAt(0)));
+      const pngBytes=Uint8Array.from(atob(sigCanvas.toDataURL('image/png').split(',')[1]),c=>c.charCodeAt(0));
+      const pngImg=await pdfDocLib.embedPng(pngBytes);
+      const {width,height}=pngImg.scale(0.5);
+      const cmToPx=cm=>cm*37.8;
+      const offsetX=cmToPx(2), offsetY=cmToPx(3);
+      const drawX=data.posX-offsetX, drawY=data.posY-offsetY;
+      const page=pdfDocLib.getPages()[data.page-1];
+      page.drawImage(pngImg,{x:drawX,y:page.getHeight()-drawY-height,width,height});
+      const signed=await pdfDocLib.save(), signedBase64=btoa(String.fromCharCode(...signed));
+      const subject = '=?UTF-8?B?'+btoa(unescape(encodeURIComponent('[전자서명 제출] '+data.docTitle+' - '+name)))+'?=';
+      const bodyText = `본인은 첨부된 "${data.docTitle}" 문서를 열람하였고, 이에 동의하여 아래와 같이 서명합니다.\n\n- 제출자 이름: ${name}\n- 제출 일시: ${new Date().toLocaleString()}`;
+      const boundary='BOUNDARY', lines=[
+        'MIME-Version: 1.0',`To: ${data.receiver}`,`Subject: ${subject}`,'Content-Type: multipart/mixed; boundary='+boundary,'',
+        '--'+boundary,'Content-Type: text/plain; charset=UTF-8','',bodyText,'',
+        '--'+boundary,'Content-Type: application/pdf','Content-Disposition: attachment; filename="signed.pdf"','Content-Transfer-Encoding: base64','',signedBase64,'--'+boundary+'--'
+      ];
+      const emailBody=lines.join('\r\n');
+      gapi.load('client',()=>gapi.client.init({apiKey:'AIzaSyBdO8g3lJHfxoiSqgOWXp1q37zMkrkaBg4',discoveryDocs:['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest']})
+        .then(()=>{gapi.client.setToken({access_token:token});return gapi.client.gmail.users.messages.send({userId:'me',resource:{raw:btoa(unescape(encodeURIComponent(emailBody))).replace(/\+/g,'-').replace(/\//g,'_')}});})
+        .then(()=>alert('제출 완료!')).catch(e=>{console.error(e);alert('전송 실패');}));
     }
 
     init();
