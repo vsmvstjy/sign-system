@@ -106,7 +106,7 @@
           return page.render({ canvasContext: ctx, viewport: vp }).promise.then(() => {
             const mx = data.posX / vp.width * canvas.width;
             const my = data.posY / vp.height * canvas.height;
-            marker.style.left = `${mx - 50}px`;
+            marker.style.left = `${mx - 0}px`;
             marker.style.top = `${my - 0}px`;  // ✨ 눈에 보이는 위치 조정만 약간 보정
             marker.style.display = 'block';
           });
