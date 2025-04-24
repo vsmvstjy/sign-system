@@ -94,7 +94,7 @@
       const pngImg = await pdfDocLib.embedPng(pngBytes);
 
       // 50% 축소
-      const { width, height } = pngImg.scale(0.5);
+      const { width, height } = pngImg.scale(0.2);
 
       // 오프셋 보정 (cm → px, 96dpi)
       const cmToPx = cm => cm * 37.8;
