@@ -55,20 +55,6 @@
       reader.readAsDataURL(file);
     });
 
-    async function renderPage(n) {
-      const page = await pdfDoc.getPage(n);
-      const vp = page.getViewport({ scale: 1.2 });
-      canvas.width = vp.width;
-      canvas.height = vp.height;
-      await page.render({ canvasContext: ctx, viewport: vp }).promise;
-      pageInfo.textContent = `Page ${n}/${totalPages}`;
-      posPage = n;
-      marker.style.display = 'none';
-    }
-
-    document.getElementById('prevPage').onclick = () => { if (currentPage > 1) renderPage(--currentPage); };
-    document.getElementById('nextPage').onclick = () => { if (currentPage < totalPages) renderPage(++currentPage); };
-
     // marker element
     const marker = (() => {
       const m = document.createElement('div');
@@ -84,14 +70,38 @@
       return m;
     })();
 
+    async function renderPage(n) {
+      currentPage = n;
+      const page = await pdfDoc.getPage(n);
+      const vp = page.getViewport({ scale: 1.2 });
+      canvas.width = vp.width;
+      canvas.height = vp.height;
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      pageInfo.textContent = `Page ${n}/${totalPages}`;
+      // show marker if matches
+      if (n === posPage) {
+        const rect = canvas.getBoundingClientRect();
+        marker.style.display = 'block';
+        marker.style.left = `${rect.left + posX - 10}px`;
+        marker.style.top = `${rect.top + posY - 10}px`;
+      } else {
+        marker.style.display = 'none';
+      }
+    }
+
+    document.getElementById('prevPage').onclick = () => {
+      if (currentPage > 1) renderPage(--currentPage);
+    };
+    document.getElementById('nextPage').onclick = () => {
+      if (currentPage < totalPages) renderPage(++currentPage);
+    };
+
     canvas.addEventListener('click', e => {
       const rect = canvas.getBoundingClientRect();
       posX = e.clientX - rect.left;
       posY = e.clientY - rect.top;
       posPage = currentPage;
-      marker.style.display = 'block';
-      marker.style.left = `${rect.left + posX - 10}px`;
-      marker.style.top = `${rect.top + posY - 10}px`;
+      renderPage(currentPage);
     });
 
     document.getElementById('generate').onclick = async () => {
