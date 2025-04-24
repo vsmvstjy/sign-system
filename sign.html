@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -159,9 +160,9 @@
     const sigCtx = sigCanvas.getContext('2d');
 
     document.getElementById('clearSig').onclick = () => sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
-    document.getElementById('saveSig').addEventListener('click', async () => {
+    document.getElementById('saveSig').onclick = async () => {
       sigModal.style.display = 'none';
-      await sendSignedEmail(tokenGlobal); });
+      await sendEmail(tokenGlobal);
     };
 
     let drawing = false;
@@ -191,7 +192,7 @@
 
     sigCanvas.addEventListener('touchend', e => { e.preventDefault(); drawing = false; });
 
-    async function sendSignedEmail(token) {
+    async function sendEmail(token) {
       const name = prompt('이름을 입력하세요');
       const pdfDocLib = await PDFLib.PDFDocument.load(Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0)));
       const pngBytes = Uint8Array.from(atob(sigCanvas.toDataURL('image/png').split(',')[1]), c => c.charCodeAt(0));
