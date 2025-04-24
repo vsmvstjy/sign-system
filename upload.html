@@ -5,18 +5,29 @@
   <meta charset="UTF-8">
   <title>문서 업로드 및 서명 위치 지정 (관리자)</title>
   <style>
-    body { font-family: sans-serif; padding:20px; margin:0; }
-    canvas { border:1px solid #ccc; display:block; margin:0 auto 20px auto; cursor:crosshair; }
-    input, button {
-  display: inline-block;
-  padding: 6px 12px;
-  margin: 5px;
-  font-size: 14px;
-  width: auto;
-  max-width: none;
-}
-
-    #nav, #linkOutput { text-align:center; }
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    #pdfArea {
+      text-align: center;
+    }
+    #nav {
+      margin-bottom: 10px;
+    }
+    #nav button {
+      padding: 6px 12px;
+      font-size: 14px;
+      margin: 0 5px;
+    }
+    canvas {
+      border: 1px solid #ccc;
+      display: block;
+      margin: 0 auto 20px auto;
+      cursor: crosshair;
+    }
     #marker {
       position: absolute;
       width: 100px;
@@ -33,44 +44,57 @@
       font-size: 16px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.2);
     }
+    #formArea {
+      max-width: 500px;
+      margin: 30px auto;
+      text-align: center;
+    }
+    #formArea input,
+    #formArea button {
+      width: 100%;
+      margin: 8px 0;
+      padding: 10px;
+      font-size: 14px;
+    }
+    #linkOutput {
+      text-align: center;
+      word-break: break-word;
+    }
   </style>
 </head>
 <body>
-  
-  <div id="nav" style="text-align:center; margin-bottom:10px;">
-    <button id="prevPage" style="display:inline-block; margin:0 10px; padding:6px 12px; font-size:14px;">이전 페이지</button>
-    <span id="pageInfo" style="font-size:14px;">Page 0/0</span>
-    <button id="nextPage" style="display:inline-block; margin:0 10px; padding:6px 12px; font-size:14px;">다음 페이지</button>
+  <div id="pdfArea">
+    <div id="nav">
+      <button id="prevPage">이전 페이지</button>
+      <span id="pageInfo">Page 0/0</span>
+      <button id="nextPage">다음 페이지</button>
+    </div>
+    <canvas id="pdfCanvas"></canvas>
+    <div id="marker">서명</div>
   </div>
-  <canvas id="pdfCanvas"></canvas>
 
-  <div id="marker">서명</div>
-
-  <input type="text" id="docTitle" placeholder="문서 제목"><br>
-  <input type="email" id="receiver" placeholder="회신 받을 이메일"><br>
-  <input type="file" id="pdfFile" accept="application/pdf"><br>
-  <div id="nav">
-    <button id="prevPage">이전 페이지</button>
-    <span id="pageInfo">Page 0/0</span>
-    <button id="nextPage">다음 페이지</button>
+  <div id="formArea">
+    <input type="text" id="docTitle" placeholder="문서 제목">
+    <input type="email" id="receiver" placeholder="회신 받을 이메일">
+    <input type="file" id="pdfFile" accept="application/pdf">
+    <button id="generate">링크 생성</button>
+    <p id="linkOutput"></p>
   </div>
-  <button id="generate">링크 생성</button>
-  <p id="linkOutput"></p>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
   <script>
-    pdfjsLib.GlobalWorkerOptions.workerSrc =
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 
         'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
   </script>
   <script type="module">
     import { db } from './firebase-config.js';
     import { doc, setDoc } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
 
-    let pdfDoc, currentPage=1, totalPages=0, pdfBase64='';
-    let posX=0, posY=0, posPage=1;
-    const canvas=document.getElementById('pdfCanvas'), ctx=canvas.getContext('2d');
-    const marker=document.getElementById('marker');
-    const pageInfo=document.getElementById('pageInfo');
+    let pdfDoc, currentPage = 1, totalPages = 0, pdfBase64 = '';
+    let posX = 0, posY = 0, posPage = 1;
+    const canvas = document.getElementById('pdfCanvas'), ctx = canvas.getContext('2d');
+    const marker = document.getElementById('marker');
+    const pageInfo = document.getElementById('pageInfo');
 
     document.getElementById('pdfFile').addEventListener('change', e => {
       const file = e.target.files[0];
@@ -79,7 +103,8 @@
         pdfBase64 = reader.result.split(',')[1];
         const raw = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
         pdfDoc = await pdfjsLib.getDocument({data: raw}).promise;
-        totalPages = pdfDoc.numPages; currentPage = 1;
+        totalPages = pdfDoc.numPages;
+        currentPage = 1;
         await renderPage(currentPage);
       };
       reader.readAsDataURL(file);
@@ -88,31 +113,32 @@
     async function renderPage(n) {
       currentPage = n;
       const page = await pdfDoc.getPage(n);
-      const vp = page.getViewport({scale: 1.2});
-      canvas.width = vp.width; canvas.height = vp.height;
-      await page.render({canvasContext: ctx, viewport: vp}).promise;
+      const vp = page.getViewport({ scale: 1.2 });
+      canvas.width = vp.width;
+      canvas.height = vp.height;
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
       pageInfo.textContent = `Page ${n}/${totalPages}`;
-      if(n === posPage) {
+      if (n === posPage) {
         const rect = canvas.getBoundingClientRect();
         marker.style.left = `${rect.left + posX - 50}px`;
         marker.style.top = `${rect.top + posY - 20 + window.scrollY}px`;
         marker.style.display = 'block';
-      } else marker.style.display = 'none';
+      } else {
+        marker.style.display = 'none';
+      }
     }
 
-    document.getElementById('prevPage').onclick = ()=> { if(currentPage > 1) renderPage(--currentPage); };
-    document.getElementById('nextPage').onclick = ()=> { if(currentPage < totalPages) renderPage(++currentPage); };
+    document.getElementById('prevPage').onclick = () => { if (currentPage > 1) renderPage(--currentPage); };
+    document.getElementById('nextPage').onclick = () => { if (currentPage < totalPages) renderPage(++currentPage); };
 
     canvas.addEventListener('click', e => {
       const rect = canvas.getBoundingClientRect();
       posX = e.clientX - rect.left;
       posY = e.clientY - rect.top;
       posPage = currentPage;
-
       marker.style.left = `${e.clientX - 50}px`;
       marker.style.top = `${e.clientY - 20 + window.scrollY}px`;
       marker.style.display = 'block';
-
       renderPage(currentPage);
     });
 
@@ -122,7 +148,13 @@
       if (!title || !receiver || !pdfBase64) return alert('모두 입력 후 위치 클릭');
       const id = Math.random().toString(36).substr(2, 10);
       await setDoc(doc(db, 'signRequests', id), {
-        docTitle: title, receiver, pdfBase64, posX, posY, page: posPage, createdAt: Date.now()
+        docTitle: title,
+        receiver,
+        pdfBase64,
+        posX,
+        posY,
+        page: posPage,
+        createdAt: Date.now()
       });
       const url = `${window.location.origin}/sign.html?id=${id}`;
       document.getElementById('linkOutput').innerHTML = `<a href="${url}" target="_blank">${url}</a>`;
