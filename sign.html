@@ -107,7 +107,7 @@
             const mx = data.posX / vp.width * canvas.width;
             const my = data.posY / vp.height * canvas.height;
             marker.style.left = `${mx - 50}px`;
-            marker.style.top = `${my - 10}px`;  // ✨ 눈에 보이는 위치 조정만 약간 보정
+            marker.style.top = `${my - 15}px`;  // ✨ 눈에 보이는 위치 조정만 약간 보정
             marker.style.display = 'block';
           });
         });
@@ -169,8 +169,8 @@
       const pngBytes = Uint8Array.from(atob(sigCanvas.toDataURL('image/png').split(',')[1]), c => c.charCodeAt(0));
       const pngImg = await pdfDocLib.embedPng(pngBytes);
       const { width, height } = pngImg.scale(0.5);
-      const drawX = data.posX - 75;  // ✨ 삽입 좌표만 살짝 낮춰줌
-      const drawY = data.posY - 75;
+const drawX = data.posX - 90;  // ← 왼쪽으로 더 이동
+const drawY = data.posY - 90;  // ↑ 위쪽으로 더 이동
       const page = pdfDocLib.getPages()[data.page - 1];
       page.drawImage(pngImg, {
         x: drawX,
