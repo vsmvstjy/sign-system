@@ -107,7 +107,7 @@
             const mx = data.posX / vp.width * canvas.width;
             const my = data.posY / vp.height * canvas.height;
             marker.style.left = `${mx - 50}px`;
-            marker.style.top = `${my - 50}px`;  // ✨ 눈에 보이는 위치 조정만 약간 보정
+            marker.style.top = `${my - 0}px`;  // ✨ 눈에 보이는 위치 조정만 약간 보정
             marker.style.display = 'block';
           });
         });
@@ -116,7 +116,7 @@
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left, y = e.clientY - rect.top;
         const mx = parseFloat(marker.style.left) + 50;
-        const my = parseFloat(marker.style.top) + 30;
+        const my = parseFloat(marker.style.top) + 20;
         if (Math.hypot(x - mx, y - my) < 100) startAuth();
       };
     }
