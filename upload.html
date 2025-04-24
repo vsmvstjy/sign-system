@@ -52,27 +52,15 @@
       reader.readAsDataURL(file);
     });
     
-const marker = (() => {
-  const m = document.createElement('div');
-  m.textContent = '서명';
-  Object.assign(m.style, {
-    position: 'absolute',
-    width: '80px',
-    height: '40px',
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    border: '2px dashed red',
-    display: 'none',
-    pointerEvents: 'none',
-    textAlign: 'center',
-    lineHeight: '40px',
-    fontWeight: 'bold',
-    color: 'red',
-    fontSize: '16px'
-  });
-  document.body.appendChild(m);
-  return m;
-})();
-
+    const marker = (() => {
+      const m = document.createElement('div');
+      Object.assign(m.style, {
+        position:'absolute', width:'20px', height:'20px',
+        border:'2px dashed red', borderRadius:'50%', display:'none', pointerEvents:'none'
+      });
+      document.body.appendChild(m);
+      return m;
+    })();
     
     async function renderPage(n) {
       currentPage = n;
@@ -92,19 +80,11 @@ const marker = (() => {
     document.getElementById('prevPage').onclick = ()=> { if(currentPage>1) renderPage(--currentPage); };
     document.getElementById('nextPage').onclick = ()=> { if(currentPage<totalPages) renderPage(++currentPage); };
     
-canvas.addEventListener('click', e => {
-  const rect = canvas.getBoundingClientRect();
-  posX = e.clientX - rect.left;
-  posY = e.clientY - rect.top;
-  posPage = currentPage;
-
-  marker.style.left = `${e.clientX - 40}px`; // 80px/2
-  marker.style.top = `${e.clientY - 20}px`;  // 40px/2
-  marker.style.display = 'block';
-
-  renderPage(currentPage); // 마커 다시 표시
-});
-
+    canvas.addEventListener('click', e => {
+      const rect = canvas.getBoundingClientRect();
+      posX = e.clientX - rect.left; posY = e.clientY - rect.top;
+      posPage = currentPage; renderPage(currentPage);
+    });
     
     document.getElementById('generate').onclick = async () => {
       const title=document.getElementById('docTitle').value;
