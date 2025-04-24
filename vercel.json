@@ -1,3 +1,17 @@
 {
   "headers":[{"source":"/(.*)","headers":[{"key":"Cross-Origin-Opener-Policy","value":"same-origin-allow-popups"}]}]
 }
+{
+  "rewrites": [
+    { "source": "/sign", "destination": "/sign.html" },
+    { "source": "/upload", "destination": "/upload.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin-allow-popups" }
+      ]
+    }
+  ]
+}
