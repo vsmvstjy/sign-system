@@ -215,16 +215,21 @@
 ];
 
       const subject = '=?UTF-8?B?' + btoa(unescape(encodeURIComponent('[전자서명 제출] ' + data.docTitle + ' - ' + name))) + '?=';
-      const emailLines = [
-        'MIME-Version: 1.0',
-        `To: ${data.receiver}`,
-        `Subject: ${subject}`,
-        'Content-Type: multipart/mixed; boundary=' + boundary, '',
-        ...parts
-      ];
+const emailLines = [
+  'MIME-Version: 1.0',
+  `To: ${data.receiver}`,
+  `Subject: ${subject}`,
+  'Content-Type: multipart/mixed; boundary=' + boundary,
+  '',
+  ...parts
+];
 
-const emailBody = emailLines.join('\r\n');
-const encodedEmail = btoa(unescape(encodeURIComponent(emailBody))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const emailBody = emailLines.join('\r\n'); // ✅ 여기!
+const encodedEmail = btoa(unescape(encodeURIComponent(emailBody)))
+  .replace(/\+/g, '-')
+  .replace(/\//g, '_')
+  .replace(/=+$/, '');
+
       gapi.load('client', () => gapi.client.init({
         apiKey: 'AIzaSyBdO8g3lJHfxoiSqgOWXp1q37zMkrkaBg4',
         discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest']
