@@ -5,61 +5,27 @@
   <meta charset="UTF-8">
   <title>문서 업로드 및 서명 위치 지정 (관리자)</title>
   <style>
-    body {
-      font-family: sans-serif;
-      margin: 0;
-      padding: 20px;
-      background: #f9f9f9;
-    }
-    #pdfArea {
-      text-align: center;
-    }
-    #nav {
-      margin-bottom: 10px;
-    }
-    #nav button {
-      padding: 6px 12px;
-      font-size: 14px;
-      margin: 0 5px;
-    }
-    canvas {
-      border: 1px solid #ccc;
-      display: block;
-      margin: 0 auto 20px auto;
-      cursor: crosshair;
-    }
+    body { font-family: sans-serif; margin: 0; padding: 20px; background: #f9f9f9; }
+    #pdfArea { text-align: center; }
+    #nav { margin-bottom: 10px; }
+    #nav button { padding: 6px 12px; font-size: 14px; margin: 0 5px; }
+    canvas { border: 1px solid #ccc; display: block; margin: 0 auto 20px auto; cursor: crosshair; }
     #marker {
       position: absolute;
-      width: 100px;
-      height: 40px;
-      background-color: #fff8dc;
-      border: 2px dashed #ff5c5c;
-      border-radius: 6px;
-      display: none;
-      pointer-events: none;
-      text-align: center;
-      line-height: 40px;
-      font-weight: bold;
-      color: #ff5c5c;
-      font-size: 16px;
+      width: 100px; height: 40px;
+      background-color: #fff8dc; border: 2px dashed #ff5c5c;
+      border-radius: 6px; display: none; pointer-events: none;
+      text-align: center; line-height: 40px;
+      font-weight: bold; color: #ff5c5c; font-size: 16px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.2);
     }
     #formArea {
-      max-width: 500px;
-      margin: 30px auto;
-      text-align: center;
+      max-width: 500px; margin: 30px auto; text-align: center;
     }
-    #formArea input,
-    #formArea button {
-      width: 100%;
-      margin: 8px 0;
-      padding: 10px;
-      font-size: 14px;
+    #formArea input, #formArea button {
+      width: 100%; margin: 8px 0; padding: 10px; font-size: 14px;
     }
-    #linkOutput {
-      text-align: center;
-      word-break: break-word;
-    }
+    #linkOutput { text-align: center; word-break: break-word; }
   </style>
 </head>
 <body>
@@ -72,7 +38,6 @@
     <canvas id="pdfCanvas"></canvas>
     <div id="marker">서명</div>
   </div>
-
   <div id="formArea">
     <input type="text" id="docTitle" placeholder="문서 제목">
     <input type="email" id="receiver" placeholder="회신 받을 이메일">
@@ -80,15 +45,26 @@
     <button id="generate">링크 생성</button>
     <p id="linkOutput"></p>
   </div>
-
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
   <script>
     pdfjsLib.GlobalWorkerOptions.workerSrc = 
         'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
   </script>
   <script type="module">
-    import { db } from './firebase-config.js';
-    import { doc, setDoc } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
+    import { getFirestore, doc, setDoc } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDrkWBu5k-2nBHhZEHwgrBrPkWSKpro6po",
+      authDomain: "sign-system-a8921.firebaseapp.com",
+      projectId: "sign-system-a8921",
+      storageBucket: "sign-system-a8921.appspot.com",
+      messagingSenderId: "356422555230",
+      appId: "1:356422555230:web:5522aefcfc133d096286cf"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
     let pdfDoc, currentPage = 1, totalPages = 0, pdfBase64 = '';
     let posX = 0, posY = 0, posPage = 1;
@@ -113,34 +89,27 @@
     async function renderPage(n) {
       currentPage = n;
       const page = await pdfDoc.getPage(n);
-      const vp = page.getViewport({ scale: 1.2 });
+      const vp = page.getViewport({ scale: 1.5 });
       canvas.width = vp.width;
       canvas.height = vp.height;
       await page.render({ canvasContext: ctx, viewport: vp }).promise;
       pageInfo.textContent = `Page ${n}/${totalPages}`;
-      if (n === posPage) {
-        const rect = canvas.getBoundingClientRect();
-        marker.style.left = `${rect.left + posX - 50}px`;
-        marker.style.top = `${rect.top + posY - 20 + window.scrollY}px`;
-        marker.style.display = 'block';
-      } else {
-        marker.style.display = 'none';
-      }
     }
-
-    document.getElementById('prevPage').onclick = () => { if (currentPage > 1) renderPage(--currentPage); };
-    document.getElementById('nextPage').onclick = () => { if (currentPage < totalPages) renderPage(++currentPage); };
 
     canvas.addEventListener('click', e => {
       const rect = canvas.getBoundingClientRect();
-      posX = e.clientX - rect.left;
-      posY = e.clientY - rect.top;
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      posX = (e.clientX - rect.left) * scaleX;
+      posY = (e.clientY - rect.top) * scaleY;
       posPage = currentPage;
       marker.style.left = `${e.clientX - 50}px`;
       marker.style.top = `${e.clientY - 20 + window.scrollY}px`;
       marker.style.display = 'block';
-      renderPage(currentPage);
     });
+
+    document.getElementById('prevPage').onclick = () => { if (currentPage > 1) renderPage(--currentPage); };
+    document.getElementById('nextPage').onclick = () => { if (currentPage < totalPages) renderPage(++currentPage); };
 
     document.getElementById('generate').onclick = async () => {
       const title = document.getElementById('docTitle').value;
