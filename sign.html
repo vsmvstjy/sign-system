@@ -1,31 +1,50 @@
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>PDF 렌더링 + 서명 (정상 작동)</title>
+  <meta charset="UTF-8" />
+  <title>전자 서명</title>
+  <style>
+    body { margin: 0; padding: 20px; font-family: sans-serif; background: #f9f9f9; }
+    #pdfContainer { position: relative; width: 100%; max-width: 800px; margin: 0 auto; }
+    canvas { display: block; width: 100%; height: auto; background: white; }
+    #marker {
+      position: absolute; width: 100px; height: 40px;
+      background-color: #fff8dc; border: 2px dashed #ff5c5c;
+      border-radius: 6px; display: none; pointer-events: none;
+      text-align: center; line-height: 40px; font-weight: bold; color: #ff5c5c; font-size: 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .modal {
+      display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.5); align-items: center; justify-content: center;
+    }
+    .modal-content {
+      background: #fff; padding: 20px; border-radius: 8px; text-align: center;
+    }
+    #sigCanvas { border: 1px solid #ccc; touch-action: none; background: white; }
+    button { margin: 10px; padding: 10px; }
+  </style>
 </head>
 <body>
-  <canvas id="pdfCanvas"></canvas>
-  <div id="marker" style="position:absolute; display:none; width:100px; height:40px;
-    background:#fff8dc; border:2px dashed red; text-align:center; line-height:40px; font-weight:bold;">
-    서명
+  <div id="pdfContainer">
+    <canvas id="pdfCanvas"></canvas>
+    <div id="marker">서명</div>
   </div>
-  <div id="sigModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh;
-    background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center;">
-    <div style="background:white; padding:20px; border-radius:10px;">
+  <div id="sigModal" class="modal">
+    <div class="modal-content">
       <h3>서명해 주세요</h3>
-      <canvas id="sigCanvas" width="400" height="200" style="border:1px solid #ccc; background:#fff;"></canvas><br>
+      <canvas id="sigCanvas" width="400" height="200"></canvas><br>
       <button id="clearSig">지우기</button>
       <button id="saveSig">제출</button>
     </div>
   </div>
 
-  <!-- 필수 라이브러리 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://apis.google.com/js/api.js"></script>
   <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
-    import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDrkWBu5k-2nBHhZEHwgrBrPkWSKpro6po",
@@ -38,14 +57,13 @@
     const canvas = document.getElementById("pdfCanvas");
     const ctx = canvas.getContext("2d");
     const marker = document.getElementById("marker");
-
+    const sigModal = document.getElementById("sigModal");
     const sigCanvas = document.getElementById("sigCanvas");
     const sigCtx = sigCanvas.getContext("2d");
 
-    // ✍️ 서명 기능 설정
-    sigCtx.strokeStyle = "#000";
     sigCtx.lineWidth = 2;
     sigCtx.lineCap = "round";
+    sigCtx.strokeStyle = "#000";
 
     let isDrawing = false;
     sigCanvas.addEventListener("mousedown", e => {
@@ -60,21 +78,23 @@
       }
     });
     sigCanvas.addEventListener("mouseup", () => isDrawing = false);
+    sigCanvas.addEventListener("mouseout", () => isDrawing = false);
 
-    document.getElementById("clearSig").onclick = () => {
-      sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+    document.getElementById("clearSig").onclick = () => sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+    document.getElementById("saveSig").onclick = async () => {
+      sigModal.style.display = "none";
+      await sendEmail(tokenGlobal);
     };
 
-    async function init() {
-      const params = new URLSearchParams(location.search);
-      const id = params.get("id");
-      const snap = await getDoc(doc(db, "signRequests", id));
-      if (!snap.exists()) {
-        alert("유효하지 않은 링크입니다.");
-        return;
-      }
+    let data;
+    const params = new URLSearchParams(location.search);
+    const id = params.get("id");
 
-      const data = snap.data();
+    async function init() {
+      const snap = await getDoc(doc(db, "signRequests", id));
+      if (!snap.exists()) return alert("잘못된 링크입니다.");
+      data = snap.data();
+
       const raw = Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0));
       const pdf = await pdfjsLib.getDocument({ data: raw }).promise;
       const page = await pdf.getPage(data.page);
@@ -83,22 +103,91 @@
       canvas.height = vp.height;
       await page.render({ canvasContext: ctx, viewport: vp }).promise;
 
-      // 위치 표시
-      const x = canvas.width * data.posXPct / 100;
-      const y = canvas.height * data.posYPct / 100;
-      marker.style.left = `${x - 50}px`;
-      marker.style.top = `${y - 20}px`;
+      // 📍 퍼센트 좌표 기반으로 위치 일치
+      const markerX = canvas.width * data.posXPct / 100;
+      const markerY = canvas.height * data.posYPct / 100;
+      marker.style.left = `${markerX - 50}px`;
+      marker.style.top = `${markerY - 20}px`;
       marker.style.display = "block";
 
-      // 클릭 시 서명 열기
       canvas.onclick = (e) => {
         const rect = canvas.getBoundingClientRect();
-        const cx = e.clientX - rect.left;
-        const cy = e.clientY - rect.top;
-        if (Math.abs(cx - x) < 100 && Math.abs(cy - y) < 40) {
-          document.getElementById("sigModal").style.display = "flex";
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        if (Math.abs(x - markerX) < 100 && Math.abs(y - markerY) < 40) {
+          startAuth();
         }
       };
+    }
+
+    let tokenGlobal;
+    window.startAuth = () => google.accounts.oauth2.initTokenClient({
+      client_id: "972595541590-k962h1slhqu6cm1r5fhp9nvdd8hu21vk.apps.googleusercontent.com",
+      scope: "https://www.googleapis.com/auth/gmail.send",
+      callback: token => {
+        tokenGlobal = token.access_token;
+        sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+        sigModal.style.display = "flex";
+      }
+    }).requestAccessToken();
+
+    async function sendEmail(token) {
+      const name = prompt("이름을 입력하세요");
+      const now = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
+
+      const sigPng = sigCanvas.toDataURL("image/png").split(',')[1];
+      const pdfRaw = data.pdfBase64;
+
+      const boundary = "boundary123";
+      const subject = '=?UTF-8?B?' + btoa(unescape(encodeURIComponent(`[전자서명 제출] ${data.docTitle} - ${name}`))) + '?=';
+      const bodyText = `본인은 첨부된 "${data.docTitle}" 문서를 열람하였고, 이에 동의하여 아래와 같이 서명합니다.
+
+- 제출자 이름: ${name}
+- 제출 일시: ${now}`;
+
+      const emailLines = [
+        "MIME-Version: 1.0",
+        `To: ${data.receiver}`,
+        `Subject: ${subject}`,
+        `Content-Type: multipart/mixed; boundary=${boundary}`,
+        "",
+        `--${boundary}`,
+        "Content-Type: text/plain; charset=UTF-8",
+        "",
+        bodyText,
+        "",
+        `--${boundary}`,
+        "Content-Type: application/pdf",
+        'Content-Disposition: attachment; filename="document.pdf"',
+        "Content-Transfer-Encoding: base64",
+        "",
+        pdfRaw,
+        "",
+        `--${boundary}`,
+        "Content-Type: image/png",
+        'Content-Disposition: attachment; filename="signature.png"',
+        "Content-Transfer-Encoding: base64",
+        "",
+        sigPng,
+        `--${boundary}--`
+      ];
+
+      const rawEmail = btoa(unescape(encodeURIComponent(emailLines.join("\r\n"))))
+        .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+
+      gapi.load("client", () => gapi.client.init({
+        apiKey: "AIzaSyBdO8g3lJHfxoiSqgOWXp1q37zMkrkaBg4",
+        discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest"]
+      }).then(() => {
+        gapi.client.setToken({ access_token: token });
+        return gapi.client.gmail.users.messages.send({
+          userId: "me",
+          resource: { raw: rawEmail }
+        });
+      }).then(() => alert("제출이 완료되었습니다.")).catch(err => {
+        console.error(err);
+        alert("전송 실패");
+      }));
     }
 
     init();
