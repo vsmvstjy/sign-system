@@ -120,8 +120,11 @@
       pageInfo.textContent = `Page ${n}/${totalPages}`;
       if (n === posPage) {
         const rect = canvas.getBoundingClientRect();
-        marker.style.left = `${rect.left + posX - 50}px`;
-        marker.style.top = `${rect.top + posY - 20 + window.scrollY}px`;
+const mx = (posX / 100) * canvas.width;
+const my = (posY / 100) * canvas.height;
+marker.style.left = `${canvas.getBoundingClientRect().left + mx - 50}px`;
+marker.style.top = `${canvas.getBoundingClientRect().top + my - 20 + window.scrollY}px`;
+
         marker.style.display = 'block';
       } else {
         marker.style.display = 'none';
