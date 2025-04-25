@@ -223,7 +223,12 @@
         ...parts
       ];
 
-      const emailBody = emailLines.join('\r\n');
+      const emailBody = emailLines.join('
+');
+const encodedEmail = btoa(unescape(encodeURIComponent(emailBody)))
+  .replace(/\+/g, '-')
+  .replace(/\//g, '_')
+  .replace(/=+$/, '');
       gapi.load('client', () => gapi.client.init({
         apiKey: 'AIzaSyBdO8g3lJHfxoiSqgOWXp1q37zMkrkaBg4',
         discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest']
@@ -232,7 +237,7 @@
         return gapi.client.gmail.users.messages.send({
           userId: 'me',
           resource: {
-            raw: btoa(unescape(encodeURIComponent(emailBody))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+            raw: encodedEmail
           }
         });
       }).then(() => alert('제출 완료!')).catch(e => { console.error(e); alert('전송 실패'); });
