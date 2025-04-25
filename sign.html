@@ -7,7 +7,7 @@
     body { margin: 0; padding: 20px; font-family: sans-serif; background: #f9f9f9; }
     #pdfContainer { position: relative; width: 100%; max-width: 800px; margin: 0 auto; }
     canvas { display: block; width: 100%; height: auto; background: white; }
-    #marker { position: absolute; width: 100px; height: 40px; background-color: #fff8dc; border: 2px dashed #ff5c5c; border-radius: 6px; display: none; pointer-events: none; text-align: center; line-height: 40px; font-weight: bold; color: #ff5c5c; font-size: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+    #marker { position: absolute; width: 100px; height: 40px; background: #fff8dc; border: 2px dashed #ff5c5c; border-radius: 6px; display: none; text-align: center; line-height: 40px; font-weight: bold; color: #ff5c5c; }
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
     .modal-content { background: #fff; padding: 20px; border-radius: 8px; text-align: center; }
     #sigCanvas { border: 1px solid #ccc; touch-action: none; }
@@ -26,7 +26,7 @@
   </div>
   <div id="sigModal" class="modal">
     <div class="modal-content">
-      <h3 style="font-size:50px;">서명해 주세요</h3>
+      <h3 style="font-size:40px;">서명해 주세요</h3>
       <canvas id="sigCanvas" width="800" height="300"></canvas><br>
       <button id="clearSig">지우기</button>
       <button id="saveSig">완료</button>
@@ -34,16 +34,15 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';</script>
   <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
-  <script>
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
-  </script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://apis.google.com/js/api.js"></script>
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
     import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
 
+    // Firebase 초기화
     const firebaseConfig = { /* your config */ };
     initializeApp(firebaseConfig);
     const db = getFirestore();
@@ -53,6 +52,10 @@
     const ctx = canvas.getContext('2d');
     const marker = document.getElementById('marker');
     const pageInfo = document.getElementById('pageInfo');
+    const sigModal = document.getElementById('sigModal');
+    const sigCanvas = document.getElementById('sigCanvas');
+    const sigCtx = sigCanvas.getContext('2d');
+    let tokenGlobal;
 
     async function init() {
       const id = new URLSearchParams(location.search).get('id');
@@ -73,18 +76,19 @@
       await page.render({ canvasContext: ctx, viewport: vp }).promise;
       pageInfo.textContent = `${n} / ${totalPages}`;
       if (n === data.page) {
-        const mx = data.posX / vp.width * canvas.width;
-        let my = data.posY / vp.height * canvas.height;
+        const mx = (data.posX / vp.width) * canvas.width;
+        let my = (data.posY / vp.height) * canvas.height;
         if (!isNaN(my)) my += my * 0.08;
         marker.style.left = `${mx - marker.offsetWidth/2}px`;
         marker.style.top = `${my - marker.offsetHeight/2}px`;
         marker.style.display = 'block';
-      } else marker.style.display = 'none';
+      } else {
+        marker.style.display = 'none';
+      }
     }
 
     document.getElementById('prevPage').onclick = () => { if (currentPage > 1) renderPage(--currentPage); };
     document.getElementById('nextPage').onclick = () => { if (currentPage < totalPages) renderPage(++currentPage); };
-
     canvas.addEventListener('click', e => {
       const rect = canvas.getBoundingClientRect();
       data.posX = e.clientX - rect.left;
@@ -95,17 +99,27 @@
       marker.style.display = 'block';
     });
 
-    function openModal() { sigModal.style.display = 'flex'; sigCtx.clearRect(0,0,sigCanvas.width,sigCanvas.height); }
-    document.getElementById('saveSig').onclick = async () => { sigModal.style.display='none'; await sendEmail(); };
+    // 서명 모달 열기
+    function openModal() {
+      sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+      sigModal.style.display = 'flex';
+    }
+    document.getElementById('saveSig').onclick = async () => {
+      sigModal.style.display = 'none';
+      await sendEmail();
+    };
 
+    // 이메일 전송 + PDF 서명 삽입
     async function sendEmail() {
       const name = prompt('이름을 입력하세요');
+      // 서명 이미지 base64
       const pngData = sigCanvas.toDataURL();
       const pngBase64 = pngData.split(',')[1];
-      const pdfBytes = Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0));
-      const pdfLibDoc = await PDFLib.PDFDocument.load(pdfBytes);
+      // PDF 원본 bytes
+      const rawPdf = Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0));
+      const pdfLibDoc = await PDFLib.PDFDocument.load(rawPdf);
       const img = await pdfLibDoc.embedPng(pngData);
-      const page = pdfLibDoc.getPage(data.page-1);
+      const page = pdfLibDoc.getPage(data.page - 1);
       const dims = img.scale(0.2);
       const x = data.posX - dims.width/2;
       const y = page.getHeight() - data.posY - dims.height;
@@ -113,26 +127,52 @@
       const signedBytes = await pdfLibDoc.save();
       const signedBase64 = btoa(String.fromCharCode(...signedBytes));
 
+      // 이메일 파트 구성
       const boundary = 'BOUNDARY';
       const bodyText = `본인은 첨부된 "${data.docTitle}" 문서를 확인하였으며, 아래와 같이 서명합니다.\n\n- 제출자: ${name}\n- 제출 일시: ${new Date().toLocaleString()}`;
       const parts = [
-        `--${boundary}`, 'Content-Type: text/plain; charset=UTF-8', '', bodyText,
-        `--${boundary}`, 'Content-Type: application/pdf; name="document.pdf"', 'Content-Disposition: attachment; filename="document.pdf"', 'Content-Transfer-Encoding: base64', '', data.pdfBase64,
-        `--${boundary}`, 'Content-Type: image/png; name="signature.png"', 'Content-Disposition: attachment; filename="signature.png"', 'Content-Transfer-Encoding: base64', '', pngBase64,
-        `--${boundary}`, 'Content-Type: application/pdf; name="signed.pdf"', 'Content-Disposition: attachment; filename="signed.pdf"', 'Content-Transfer-Encoding: base64', '', signedBase64,
+        `--${boundary}`,
+        'Content-Type: text/plain; charset=UTF-8',
+        '',
+        bodyText,
+        `--${boundary}`,
+        'Content-Type: application/pdf; name="document.pdf"',
+        'Content-Disposition: attachment; filename="document.pdf"',
+        'Content-Transfer-Encoding: base64',
+        '',
+        data.pdfBase64,
+        `--${boundary}`,
+        'Content-Type: image/png; name="signature.png"',
+        'Content-Disposition: attachment; filename="signature.png"',
+        'Content-Transfer-Encoding: base64',
+        '',
+        pngBase64,
+        `--${boundary}`,
+        'Content-Type: application/pdf; name="signed.pdf"',
+        'Content-Disposition: attachment; filename="signed.pdf"',
+        'Content-Transfer-Encoding: base64',
+        '',
+        signedBase64,
         `--${boundary}--`
       ];
       const subject = `=?UTF-8?B?${btoa(unescape(encodeURIComponent(`[전자서명 제출] ${data.docTitle} - ${name}`)))}?=`;
       const lines = [
-        'MIME-Version: 1.0', `To: ${data.receiver}`, `Subject: ${subject}`, `Content-Type: multipart/mixed; boundary=${boundary}`, '',
+        'MIME-Version: 1.0',
+        `To: ${data.receiver}`,
+        `Subject: ${subject}`,
+        `Content-Type: multipart/mixed; boundary=${boundary}`,
+        '',
         ...parts
       ];
       const emailBody = lines.join('\r\n');
       const raw = btoa(unescape(encodeURIComponent(emailBody))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+
       gapi.load('client', () => {
         gapi.client.init({ apiKey: 'YOUR_API_KEY', discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest'] })
-          .then(() => gapi.client.setToken({ access_token: tokenGlobal }))
-          .then(() => gapi.client.gmail.users.messages.send({ userId: 'me', resource: { raw } }))
+          .then(() => {
+            gapi.client.setToken({ access_token: tokenGlobal });
+            return gapi.client.gmail.users.messages.send({ userId: 'me', resource: { raw } });
+          })
           .then(() => alert('제출 완료!'))
           .catch(e => { console.error(e); alert('전송 실패'); });
       });
