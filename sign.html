@@ -154,7 +154,18 @@
     const sigCanvas = document.getElementById('sigCanvas');
     const sigCtx = sigCanvas.getContext('2d');
 
+    function resizeSigCanvas() {
+  const rect = sigCanvas.getBoundingClientRect();
+  sigCanvas.width = rect.width;
+  sigCanvas.height = rect.height;
+  sigCtx.lineWidth = 2;
+  sigCtx.strokeStyle = "#000";
+}
+window.addEventListener('resize', resizeSigCanvas);
+
+
     function openModal() {
+        resizeSigCanvas(); // ← 이 줄 추가!
       sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
       sigModal.style.display = 'flex';
     }
