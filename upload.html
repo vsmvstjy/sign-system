@@ -113,15 +113,15 @@
     async function renderPage(n) {
       currentPage = n;
       const page = await pdfDoc.getPage(n);
-      const vp = page.getViewport({ scale: 1.2 });
+      const vp = page.getViewport({ scale: 1.5 });
       canvas.width = vp.width;
       canvas.height = vp.height;
       await page.render({ canvasContext: ctx, viewport: vp }).promise;
       pageInfo.textContent = `Page ${n}/${totalPages}`;
       if (n === posPage) {
-        const rect = canvas.getBoundingClientRect();
-        marker.style.left = `${rect.left + posX - 50}px`;
-        marker.style.top = `${rect.top + posY - 20 + window.scrollY}px`;
+const rect = canvas.getBoundingClientRect();
+posX = (e.clientX - rect.left) / canvas.width;
+posY = (e.clientY - rect.top) / canvas.height;
         marker.style.display = 'block';
       } else {
         marker.style.display = 'none';
