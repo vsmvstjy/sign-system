@@ -170,38 +170,6 @@
       const pdfBase64 = data.pdfBase64;
       const pngData = sigCanvas.toDataURL('image/png');
       const pngBase64 = pngData.split(',')[1];
-// PDF에 서명 이미지 삽입
-const pdfDoc = await PDFLib.PDFDocument.load(Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0)));
-const pngBytes = Uint8Array.from(atob(pngBase64), c => c.charCodeAt(0));
-const pngImg = await pdfDoc.embedPng(pngBytes);
-const { width, height } = pngImg.scale(0.3);
-
-const pages = pdfDoc.getPages();
-const pageIndex = data.page - 1;
-
-if (pageIndex < 0 || pageIndex >= pages.length) {
-  alert("서명할 페이지가 존재하지 않습니다.");
-  return;
-}
-
-const page = pages[pageIndex];
-const pdfWidth = page.getWidth();
-const pdfHeight = page.getHeight();
-const drawX = (data.posX / 100) * pdfWidth - 100;
-const drawY = (data.posY / 100) * pdfHeight - 105;
-
-page.drawImage(pngImg, {
-  x: drawX,
-  y: pdfHeight - drawY - height,
-  width, height
-});
-
-const signedPdfBytes = await pdfDoc.save();
-const signedPdfBase64 = btoa(String.fromCharCode(...signedPdfBytes));
-
-
-
-
       const subject = '=?UTF-8?B?' + btoa(unescape(encodeURIComponent('[전자서명 제출] ' + data.docTitle + ' - ' + name))) + '?=';
       const bodyText = `본인은 첨부된 "${data.docTitle}" 문서를 확인하였으며, 아래와 같이 서명합니다.
 
@@ -219,13 +187,6 @@ const signedPdfBase64 = btoa(String.fromCharCode(...signedPdfBytes));
         'Content-Transfer-Encoding: base64',
         '',
         pdfBase64,
-'--' + boundary,
-'Content-Type: application/pdf; name="signed.pdf"',
-'Content-Disposition: attachment; filename="signed.pdf"',
-'Content-Transfer-Encoding: base64',
-'',
-signedPdfBase64,
-
         '--' + boundary,
         'Content-Type: image/png; name="signature.png"',
         'Content-Disposition: attachment; filename="signature.png"',
