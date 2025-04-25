@@ -223,9 +223,7 @@
         ...parts
       ];
 
-      const emailBody = emailLines.join('
-');
-const encodedEmail = btoa(unescape(encodeURIComponent(emailBody))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const emailBody = emailLines.join('\r\n');
 const encodedEmail = btoa(unescape(encodeURIComponent(emailBody))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
       gapi.load('client', () => gapi.client.init({
         apiKey: 'AIzaSyBdO8g3lJHfxoiSqgOWXp1q37zMkrkaBg4',
