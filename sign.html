@@ -91,26 +91,32 @@
       renderPage(currentPage);
     }
 
-    async function renderPage(n) {
-      const page = await pdfRef.getPage(n);
-      const vp = page.getViewport({ scale: 1.5 });
-      canvas.width = vp.width;
-      canvas.height = vp.height;
-      await page.render({ canvasContext: ctx, viewport: vp }).promise;
-      pageInfo.innerText = `${n} / ${totalPages}`;
-if (n === data.page) {
-  const mx = data.posX / vp.width * canvas.width;
+async function renderPage(n) {
+  const page = await pdfRef.getPage(n);
+  const vp = page.getViewport({ scale: 1.5 });
+  canvas.width = vp.width;
+  canvas.height = vp.height;
+  await page.render({ canvasContext: ctx, viewport: vp }).promise;
+  pageInfo.innerText = `${n} / ${totalPages}`;
 
-  const rawY = data.posY / vp.height * canvas.height;
-  const correction = rawY * 0.05; // 아래로 갈수록 더 보정
-  const my = rawY + correction;
+  if (n === data.page) {
+    const mx = data.posX / vp.width * canvas.width;
 
-  marker.style.left = `${mx - marker.offsetWidth / 2}px`;
-  marker.style.top = `${my - marker.offsetHeight / 2}px`;
-  marker.style.display = 'block';
-} else {
-  marker.style.display = 'none';
+    // 안전한 보정식 (에러 방지용 변수 초기화 포함)
+    let my = data.posY / vp.height * canvas.height;
+    if (!isNaN(my)) {
+      const correction = my * 0.05;
+      my = my + correction;
+    }
+
+    marker.style.left = `${mx - marker.offsetWidth / 2}px`;
+    marker.style.top = `${my - marker.offsetHeight / 2}px`;
+    marker.style.display = 'block';
+  } else {
+    marker.style.display = 'none';
+  }
 }
+
 
     document.getElementById('prevPage').onclick = () => {
       if (currentPage > 1) { currentPage--; renderPage(currentPage); }
