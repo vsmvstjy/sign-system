@@ -131,24 +131,16 @@
     document.getElementById('prevPage').onclick = () => { if (currentPage > 1) renderPage(--currentPage); };
     document.getElementById('nextPage').onclick = () => { if (currentPage < totalPages) renderPage(++currentPage); };
 
-canvas.addEventListener('click', e => {
-  const rect = canvas.getBoundingClientRect();
-  const clickX = e.clientX - rect.left;
-  const clickY = e.clientY - rect.top;
-
-  // 1. 저장용 비율 좌표 (Firestore용)
-  posX = clickX / canvas.width;
-  posY = clickY / canvas.height;
-  posPage = currentPage;
-
-  // 2. 화면 표시용 위치 (마커 표시)
-  marker.style.left = `${rect.left + clickX - 50}px`; // -50은 마커 width의 절반
-  marker.style.top = `${rect.top + clickY - 20 + window.scrollY}px`; // -20은 마커 height의 절반
-  marker.style.display = 'block';
-
-  renderPage(currentPage); // 없어도 되긴 함
-});
-
+    canvas.addEventListener('click', e => {
+      const rect = canvas.getBoundingClientRect();
+      posX = e.clientX - rect.left;
+      posY = e.clientY - rect.top;
+      posPage = currentPage;
+      marker.style.left = `${e.clientX - 50}px`;
+      marker.style.top = `${e.clientY - 20 + window.scrollY}px`;
+      marker.style.display = 'block';
+      renderPage(currentPage);
+    });
 
     document.getElementById('generate').onclick = async () => {
       const title = document.getElementById('docTitle').value;
