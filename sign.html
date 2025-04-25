@@ -223,8 +223,7 @@
         ...parts
       ];
 
-      const emailBody = emailLines.join('
-');
+const emailBody = emailLines.join('\r\n');
 const encodedEmail = btoa(unescape(encodeURIComponent(emailBody)))
   .replace(/\+/g, '-')
   .replace(/\//g, '_')
