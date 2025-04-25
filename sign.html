@@ -42,7 +42,6 @@
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
     import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
 
-    // Firebase 초기화
     const firebaseConfig = { /* your config */ };
     initializeApp(firebaseConfig);
     const db = getFirestore();
@@ -99,7 +98,6 @@
       marker.style.display = 'block';
     });
 
-    // 서명 모달 열기
     function openModal() {
       sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
       sigModal.style.display = 'flex';
@@ -109,13 +107,10 @@
       await sendEmail();
     };
 
-    // 이메일 전송 + PDF 서명 삽입
     async function sendEmail() {
       const name = prompt('이름을 입력하세요');
-      // 서명 이미지 base64
       const pngData = sigCanvas.toDataURL();
       const pngBase64 = pngData.split(',')[1];
-      // PDF 원본 bytes
       const rawPdf = Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0));
       const pdfLibDoc = await PDFLib.PDFDocument.load(rawPdf);
       const img = await pdfLibDoc.embedPng(pngData);
@@ -127,35 +122,30 @@
       const signedBytes = await pdfLibDoc.save();
       const signedBase64 = btoa(String.fromCharCode(...signedBytes));
 
-      // 이메일 파트 구성
       const boundary = 'BOUNDARY';
       const bodyText = `본인은 첨부된 "${data.docTitle}" 문서를 확인하였으며, 아래와 같이 서명합니다.\n\n- 제출자: ${name}\n- 제출 일시: ${new Date().toLocaleString()}`;
       const parts = [
         `--${boundary}`,
-        'Content-Type: text/plain; charset=UTF-8',
-        '',
-        bodyText,
+        'Content-Type: text/plain; charset=UTF-8', '', bodyText,
         `--${boundary}`,
         'Content-Type: application/pdf; name="document.pdf"',
         'Content-Disposition: attachment; filename="document.pdf"',
-        'Content-Transfer-Encoding: base64',
-        '',
-        data.pdfBase64,
+        'Content-Transfer-Encoding: base64', '', data.pdfBase64,
         `--${boundary}`,
         'Content-Type: image/png; name="signature.png"',
         'Content-Disposition: attachment; filename="signature.png"',
-        'Content-Transfer-Encoding: base64',
-        '',
-        pngBase64,
+        'Content-Transfer-Encoding: base64', '', pngBase64,
         `--${boundary}`,
         'Content-Type: application/pdf; name="signed.pdf"',
         'Content-Disposition: attachment; filename="signed.pdf"',
-        'Content-Transfer-Encoding: base64',
-        '',
-        signedBase64,
+        'Content-Transfer-Encoding: base64', '', signedBase64,
         `--${boundary}--`
       ];
-      const subject = `=?UTF-8?B?${btoa(unescape(encodeURIComponent(`[전자서명 제출] ${data.docTitle} - ${name}`)))}?=`;
+
+      const subjectText = `[전자서명 제출] ${data.docTitle} - ${name}`;
+      const subjectEncoded = btoa(unescape(encodeURIComponent(subjectText)));
+      const subject = `=?UTF-8?B?${subjectEncoded}?=`;
+
       const lines = [
         'MIME-Version: 1.0',
         `To: ${data.receiver}`,
@@ -164,6 +154,7 @@
         '',
         ...parts
       ];
+
       const emailBody = lines.join('\r\n');
       const raw = btoa(unescape(encodeURIComponent(emailBody))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 
