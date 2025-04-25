@@ -2,37 +2,22 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <title>전자 서명</title>
-  <style>
-    body { font-family: sans-serif; background: #f9f9f9; margin: 0; padding: 20px; }
-    canvas { display: block; margin: 0 auto; background: white; }
-    #marker {
-      position: absolute; width: 100px; height: 40px;
-      background-color: #fff8dc; border: 2px dashed #ff5c5c;
-      border-radius: 6px; display: none; pointer-events: none;
-      text-align: center; line-height: 40px; font-weight: bold;
-      color: #ff5c5c; font-size: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-    }
-    #sigModal {
-      display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(0,0,0,0.5); justify-content: center; align-items: center;
-    }
-    #sigModalContent {
-      background: white; padding: 20px; border-radius: 10px; text-align: center;
-    }
-    button { padding: 10px 20px; margin: 10px; }
-  </style>
+  <meta charset="UTF-8">
+  <title>Sign PDF</title>
 </head>
 <body>
   <canvas id="pdfCanvas"></canvas>
-  <div id="marker">서명</div>
-  <div id="sigModal">
-    <div id="sigModalContent">
+  <div id="marker" style="position:absolute; display:none; width:100px; height:40px;
+    background:#fff8dc; border:2px dashed red; text-align:center; line-height:40px; font-weight:bold;">
+    서명
+  </div>
+  <div id="modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh;
+    background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
+    <div style="background:white; padding:20px; border-radius:10px; text-align:center;">
       <h3>서명해 주세요</h3>
       <canvas id="sigCanvas" width="400" height="200" style="border:1px solid #ccc;"></canvas><br>
-      <button id="clearSig">지우기</button>
-      <button id="saveSig">서명 제출</button>
+      <button id="clear">지우기</button>
+      <button id="save">PDF 저장</button>
     </div>
   </div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
@@ -44,31 +29,41 @@
     const firebaseConfig = {
       apiKey: "AIzaSyDrkWBu5k-2nBHhZEHwgrBrPkWSKpro6po",
       authDomain: "sign-system-a8921.firebaseapp.com",
-      projectId: "sign-system-a8921",
-      storageBucket: "sign-system-a8921.appspot.com",
-      messagingSenderId: "356422555230",
-      appId: "1:356422555230:web:5522aefcfc133d096286cf"
+      projectId: "sign-system-a8921"
     };
-
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+
+    const params = new URLSearchParams(location.search);
+    const id = params.get("id");
 
     const canvas = document.getElementById("pdfCanvas");
     const ctx = canvas.getContext("2d");
     const marker = document.getElementById("marker");
 
-    const sigModal = document.getElementById("sigModal");
+    const modal = document.getElementById("modal");
     const sigCanvas = document.getElementById("sigCanvas");
     const sigCtx = sigCanvas.getContext("2d");
 
-    const params = new URLSearchParams(location.search);
-    const id = params.get("id");
+    let isDrawing = false;
+    sigCanvas.addEventListener("mousedown", e => {
+      isDrawing = true;
+      sigCtx.beginPath();
+      sigCtx.moveTo(e.offsetX, e.offsetY);
+    });
+    sigCanvas.addEventListener("mousemove", e => {
+      if (isDrawing) {
+        sigCtx.lineTo(e.offsetX, e.offsetY);
+        sigCtx.stroke();
+      }
+    });
+    sigCanvas.addEventListener("mouseup", () => isDrawing = false);
+
+    document.getElementById("clear").onclick = () => sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
 
     let pdfData;
-
     async function init() {
       const snap = await getDoc(doc(db, "signRequests", id));
-      if (!snap.exists()) return alert("링크 오류");
       pdfData = snap.data();
       const raw = Uint8Array.from(atob(pdfData.pdfBase64), c => c.charCodeAt(0));
       const pdf = await pdfjsLib.getDocument({ data: raw }).promise;
@@ -84,25 +79,23 @@
       marker.style.top = `${y - 20}px`;
       marker.style.display = "block";
 
-      canvas.addEventListener("click", e => {
+      canvas.onclick = (e) => {
         const rect = canvas.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         const clickY = e.clientY - rect.top;
         if (Math.abs(clickX - x) < 100 && Math.abs(clickY - y) < 40) {
-          sigModal.style.display = "flex";
+          modal.style.display = "flex";
         }
-      });
+      };
     }
 
-    document.getElementById("clearSig").onclick = () => sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
-    document.getElementById("saveSig").onclick = async () => {
-      sigModal.style.display = "none";
-      const pngBytes = Uint8Array.from(atob(sigCanvas.toDataURL("image/png").split(",")[1]), c => c.charCodeAt(0));
+    document.getElementById("save").onclick = async () => {
+      modal.style.display = "none";
+      const pngBytes = Uint8Array.from(atob(sigCanvas.toDataURL().split(",")[1]), c => c.charCodeAt(0));
       const pdfDoc = await PDFLib.PDFDocument.load(Uint8Array.from(atob(pdfData.pdfBase64), c => c.charCodeAt(0)));
       const pngImg = await pdfDoc.embedPng(pngBytes);
       const { width, height } = pngImg.scale(0.3);
-      const pages = pdfDoc.getPages();
-      const page = pages[pdfData.page - 1];
+      const page = pdfDoc.getPages()[pdfData.page - 1];
       const px = page.getWidth() * pdfData.posXPct / 100;
       const py = page.getHeight() * pdfData.posYPct / 100;
       page.drawImage(pngImg, { x: px, y: page.getHeight() - py - height, width, height });

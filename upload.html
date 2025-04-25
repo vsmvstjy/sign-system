@@ -3,28 +3,20 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>Upload (PDF 기준 퍼센트)</title>
-  <style>
-    body { font-family: sans-serif; background: #f9f9f9; padding: 20px; }
-    canvas { border: 1px solid #ccc; display: block; margin: 20px auto; cursor: crosshair; }
-    #marker {
-      position: absolute; width: 100px; height: 40px;
-      background: #fff8dc; border: 2px dashed #ff5c5c;
-      border-radius: 6px; display: none; pointer-events: none;
-      text-align: center; line-height: 40px;
-      font-weight: bold; color: #ff5c5c; font-size: 16px;
-    }
-  </style>
+  <title>Upload PDF</title>
 </head>
 <body>
   <h3>문서 업로드 및 서명 위치 지정</h3>
-  <input type="file" id="pdfFile" accept="application/pdf"><br>
+  <input type="file" id="pdfFile"><br>
   <input type="text" id="docTitle" placeholder="문서 제목"><br>
   <input type="email" id="receiver" placeholder="받는 이메일"><br>
   <button id="generate">링크 생성</button>
   <p id="linkOutput"></p>
   <canvas id="pdfCanvas"></canvas>
-  <div id="marker">서명</div>
+  <div id="marker" style="position:absolute; display:none; width:100px; height:40px;
+    background:#fff8dc; border:2px dashed red; text-align:center; line-height:40px; font-weight:bold;">
+    서명
+  </div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
@@ -33,66 +25,58 @@
     const firebaseConfig = {
       apiKey: "AIzaSyDrkWBu5k-2nBHhZEHwgrBrPkWSKpro6po",
       authDomain: "sign-system-a8921.firebaseapp.com",
-      projectId: "sign-system-a8921",
-      storageBucket: "sign-system-a8921.appspot.com",
-      messagingSenderId: "356422555230",
-      appId: "1:356422555230:web:5522aefcfc133d096286cf"
+      projectId: "sign-system-a8921"
     };
-
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    let pdfDoc, page, viewport;
-    let posXPct = 0, posYPct = 0;
-    const canvas = document.getElementById('pdfCanvas');
-    const ctx = canvas.getContext('2d');
-    const marker = document.getElementById('marker');
+    const canvas = document.getElementById("pdfCanvas");
+    const ctx = canvas.getContext("2d");
+    const marker = document.getElementById("marker");
+    let viewport;
 
-    document.getElementById('pdfFile').addEventListener('change', async (e) => {
-      const file = e.target.files[0];
+    let posXPct = 0, posYPct = 0, pdfBase64 = '';
+
+    document.getElementById("pdfFile").addEventListener("change", async (e) => {
       const reader = new FileReader();
       reader.onload = async () => {
-        const base64 = reader.result.split(',')[1];
-        const raw = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-        pdfDoc = await pdfjsLib.getDocument({ data: raw }).promise;
-        page = await pdfDoc.getPage(1);
+        pdfBase64 = reader.result.split(",")[1];
+        const raw = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
+        const pdf = await pdfjsLib.getDocument({ data: raw }).promise;
+        const page = await pdf.getPage(1);
         viewport = page.getViewport({ scale: 1.5 });
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         await page.render({ canvasContext: ctx, viewport }).promise;
-        window.pdfBase64 = base64;
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(e.target.files[0]);
     });
 
-    canvas.addEventListener('click', (e) => {
+    canvas.addEventListener("click", (e) => {
       const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      const clickX = (e.clientX - rect.left) * scaleX;
-      const clickY = (e.clientY - rect.top) * scaleY;
-      posXPct = clickX / viewport.width * 100;
-      posYPct = clickY / viewport.height * 100;
+      const clickX = (e.clientX - rect.left) * (canvas.width / rect.width);
+      const clickY = (e.clientY - rect.top) * (canvas.height / rect.height);
+      posXPct = (clickX / canvas.width) * 100;
+      posYPct = (clickY / canvas.height) * 100;
       marker.style.left = `${e.clientX - 50}px`;
       marker.style.top = `${e.clientY - 20 + window.scrollY}px`;
-      marker.style.display = 'block';
+      marker.style.display = "block";
     });
 
-    document.getElementById('generate').onclick = async () => {
-      const title = document.getElementById('docTitle').value;
-      const receiver = document.getElementById('receiver').value;
+    document.getElementById("generate").onclick = async () => {
+      const title = document.getElementById("docTitle").value;
+      const receiver = document.getElementById("receiver").value;
       const id = Math.random().toString(36).substr(2, 10);
-      await setDoc(doc(db, 'signRequests', id), {
+      await setDoc(doc(db, "signRequests", id), {
         docTitle: title,
         receiver,
-        pdfBase64: window.pdfBase64,
+        pdfBase64,
         posXPct,
         posYPct,
-        page: 1,
-        createdAt: Date.now()
+        page: 1
       });
-      const url = `${window.location.origin}/sign.html?id=${id}`;
-      document.getElementById('linkOutput').innerHTML = `<a href="${url}" target="_blank">${url}</a>`;
+      const url = `${location.origin}/sign.html?id=${id}`;
+      document.getElementById("linkOutput").innerHTML = `<a href="${url}" target="_blank">${url}</a>`;
     };
   </script>
 </body>
