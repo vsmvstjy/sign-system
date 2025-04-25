@@ -225,19 +225,18 @@
 
 const emailBody = emailLines.join('\r\n');
 const encodedEmail = btoa(unescape(encodeURIComponent(emailBody))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-      gapi.load('client', () => gapi.client.init({
-        apiKey: 'AIzaSyBdO8g3lJHfxoiSqgOWXp1q37zMkrkaBg4',
-        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest']
-      }).then(() => {
-        gapi.client.setToken({ access_token: token });
-        return gapi.client.gmail.users.messages.send({
-          userId: 'me',
-          resource: {
-            raw: encodedEmail
-          }
-        });
-      }).then(() => alert('제출 완료!')).catch(e => { console.error(e); alert('전송 실패'); });
-    }
+gapi.load('client', () =>
+  gapi.client.init({
+    apiKey: 'AIzaSyBdO8g3lJHfxoiSqgOWXp1q37zMkrkaBg4',
+    discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest']
+  })
+  .then(() => {
+    gapi.client.setToken({ access_token: token });
+    return gapi.client.gmail.users.messages.send({ userId: 'me', resource: { raw: encodedEmail } });
+  })
+  .then(() => alert('제출 완료!'))
+  .catch(e => { console.error(e); alert('전송 실패'); })
+});
 
     init();
   </script>
