@@ -1,13 +1,27 @@
-<!-- upload.html -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
   <title>문서 업로드 및 서명 위치 지정 (관리자)</title>
   <style>
-    #pdfArea { position: relative; }
-    canvas { display: block; }
-    #marker { position: absolute; }
+    #pdfArea { position: relative; width: 800px; margin: 0 auto; }
+    canvas { width: 800px !important; height: auto !important; display: block; }
+    #marker {
+      position: absolute;
+      width: 100px;
+      height: 40px;
+      background-color: #fff8dc;
+      border: 2px dashed #ff5c5c;
+      border-radius: 6px;
+      display: none;
+      pointer-events: none;
+      text-align: center;
+      line-height: 40px;
+      font-weight: bold;
+      color: #ff5c5c;
+      font-size: 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
   </style>
 </head>
 <body>
@@ -33,7 +47,6 @@
   <script type="module">
     import { db } from './firebase-config.js';
     import { doc, setDoc } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
-
     let pdfDoc, currentPage = 1, totalPages = 0;
     let normX = 0, normY = 0, posPage = 1;
     const canvas = document.getElementById('pdfCanvas');
@@ -83,7 +96,7 @@
         docTitle: document.getElementById('docTitle').value,
         receiver: document.getElementById('receiver').value,
         pdfBase64: await new Promise(r=>canvas.toBlob(b=>{
-          const fr=new FileReader();fr.onload=()=>r(fr.result.split(',')[1]);fr.readAsDataURL(b);
+          const fr = new FileReader(); fr.onload = ()=>r(fr.result.split(',')[1]); fr.readAsDataURL(b);
         })),
         normX,
         normY,
