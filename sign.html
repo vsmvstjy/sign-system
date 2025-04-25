@@ -32,7 +32,6 @@
       <button id="saveSig">완료</button>
     </div>
   </div>
-
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
   <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';</script>
   <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
@@ -45,7 +44,6 @@
     const firebaseConfig = { /* your config */ };
     initializeApp(firebaseConfig);
     const db = getFirestore();
-
     let data, pdfDoc, currentPage = 1, totalPages = 0;
     const canvas = document.getElementById('pdfCanvas');
     const ctx = canvas.getContext('2d');
@@ -55,7 +53,6 @@
     const sigCanvas = document.getElementById('sigCanvas');
     const sigCtx = sigCanvas.getContext('2d');
     let tokenGlobal;
-
     async function init() {
       const id = new URLSearchParams(location.search).get('id');
       const snap = await getDoc(doc(db, 'signRequests', id));
@@ -66,7 +63,6 @@
       totalPages = pdfDoc.numPages;
       renderPage(currentPage);
     }
-
     async function renderPage(n) {
       const page = await pdfDoc.getPage(n);
       const vp = page.getViewport({ scale: 1.5 });
@@ -85,7 +81,6 @@
         marker.style.display = 'none';
       }
     }
-
     document.getElementById('prevPage').onclick = () => { if (currentPage > 1) renderPage(--currentPage); };
     document.getElementById('nextPage').onclick = () => { if (currentPage < totalPages) renderPage(++currentPage); };
     canvas.addEventListener('click', e => {
@@ -97,7 +92,6 @@
       marker.style.top = `${rect.top + data.posY - 20 + window.scrollY}px`;
       marker.style.display = 'block';
     });
-
     function openModal() {
       sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
       sigModal.style.display = 'flex';
@@ -106,7 +100,6 @@
       sigModal.style.display = 'none';
       await sendEmail();
     };
-
     async function sendEmail() {
       const name = prompt('이름을 입력하세요');
       const pngData = sigCanvas.toDataURL();
@@ -121,7 +114,6 @@
       page.drawImage(img, { x, y, width: dims.width, height: dims.height });
       const signedBytes = await pdfLibDoc.save();
       const signedBase64 = btoa(String.fromCharCode(...signedBytes));
-
       const boundary = 'BOUNDARY';
       const bodyText = `본인은 첨부된 "${data.docTitle}" 문서를 확인하였으며, 아래와 같이 서명합니다.\n\n- 제출자: ${name}\n- 제출 일시: ${new Date().toLocaleString()}`;
       const parts = [
@@ -141,12 +133,10 @@
         'Content-Transfer-Encoding: base64', '', signedBase64,
         `--${boundary}--`
       ];
-
       const subjectText = `[전자서명 제출] ${data.docTitle} - ${name}`;
       const utf8Bytes = new TextEncoder().encode(subjectText);
       const subjectEncoded = btoa(String.fromCharCode(...utf8Bytes));
       const subject = `=?UTF-8?B?${subjectEncoded}?=`;
-
       const lines = [
         'MIME-Version: 1.0',
         `To: ${data.receiver}`,
@@ -155,10 +145,8 @@
         '',
         ...parts
       ];
-
       const emailBody = lines.join('\r\n');
       const raw = btoa(unescape(encodeURIComponent(emailBody))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-
       gapi.load('client', () => {
         gapi.client.init({ apiKey: 'YOUR_API_KEY', discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest'] })
           .then(() => {
@@ -169,7 +157,6 @@
           .catch(e => { console.error(e); alert('전송 실패'); });
       });
     }
-
     init();
   </script>
 </body>
