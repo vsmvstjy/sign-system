@@ -99,10 +99,12 @@
       await page.render({ canvasContext: ctx, viewport: vp }).promise;
       pageInfo.innerText = `${n} / ${totalPages}`;
       if (n === data.page) {
-        const mx = data.posX / vp.width * canvas.width;
-        const my = (1 - data.posY) * canvas.height;
-        marker.style.left = `${mx - marker.offsetWidth/2}px`;
-        marker.style.top = `${my - marker.offsetHeight/2}px`;
+const mx = data.posX * canvas.width;
+const my = (1 - data.posY) * canvas.height;
+
+marker.style.left = `${mx - marker.offsetWidth/2}px`;
+marker.style.top = `${my - marker.offsetHeight/2}px`;
+
         marker.style.display = 'block';
       } else {
         marker.style.display = 'none';
