@@ -3,7 +3,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>Upload (PDF 원본 기준 퍼센트)</title>
+  <title>Upload (PDF 기준 퍼센트)</title>
   <style>
     body { font-family: sans-serif; background: #f9f9f9; padding: 20px; }
     canvas { border: 1px solid #ccc; display: block; margin: 20px auto; cursor: crosshair; }
@@ -91,7 +91,8 @@
         page: 1,
         createdAt: Date.now()
       });
-      document.getElementById('linkOutput').innerHTML = `<a href="/sign.html?id=${id}" target="_blank">서명 링크</a>`;
+      const url = `${window.location.origin}/sign.html?id=${id}`;
+      document.getElementById('linkOutput').innerHTML = `<a href="${url}" target="_blank">${url}</a>`;
     };
   </script>
 </body>
