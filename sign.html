@@ -51,7 +51,6 @@
       messagingSenderId: "356422555230",
       appId: "1:356422555230:web:5522aefcfc133d096286cf"
     };
-
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
@@ -80,11 +79,11 @@
       canvas.height = vp.height;
       await page.render({ canvasContext: ctx, viewport: vp }).promise;
       pageInfo.innerText = `${n} / ${totalPages}`;
-      if (parseInt(data.page) === n) {
+      if (n === data.page) {
         const mx = data.posX * canvas.width;
         const my = data.posY * canvas.height;
-        marker.style.left = `${mx - 50}px`;
-        marker.style.top = `${my - 20}px`;
+        marker.style.left = `${mx - marker.offsetWidth/2}px`;
+        marker.style.top = `${my - marker.offsetHeight/2}px`;
         marker.style.display = 'block';
       } else {
         marker.style.display = 'none';
@@ -97,17 +96,6 @@
     document.getElementById('nextPage').onclick = () => {
       if (currentPage < totalPages) { currentPage++; renderPage(currentPage); }
     };
-
-    canvas.addEventListener('click', e => {
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      const mx = data.posX * canvas.width;
-      const my = data.posY * canvas.height;
-      if (parseInt(data.page) === currentPage && Math.hypot(x - mx, y - my) < 50) {
-        alert('🖋️ 서명 클릭됨 — 여기에 startAuth() 연결 가능');
-      }
-    });
 
     init();
   </script>
