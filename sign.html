@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -42,7 +43,7 @@
 <body>
   <div style="text-align:center; margin-bottom: 10px;">
     <button id="prevPage">이전 페이지</button>
-    <span id="pageInfo">0 / 0</span>
+    <span id="pageInfo">page 0/0</span>
     <button id="nextPage">다음 페이지</button>
   </div>
   <div id="pdfContainer">
@@ -52,7 +53,7 @@
   <div id="sigModal" class="modal">
     <div class="modal-content">
       <h3>서명해 주세요</h3>
-      <canvas id="sigCanvas" width="600" height="300"></canvas><br>
+      <canvas id="sigCanvas" width="800" height="400"></canvas><br>
       <button id="clearSig">지우기</button>
       <button id="saveSig">완료</button>
     </div>
@@ -152,6 +153,28 @@
 
     document.getElementById('saveSig').onclick = async () => {
       sigModal.style.display = 'none';
+      await sendEmail(tokenGlobal);
+    };
+
+    let drawing = false;
+    ['mousedown','touchstart'].forEach(evt => sigCanvas.addEventListener(evt, e => {
+      drawing = true;
+      const pos = e.touches ? e.touches[0] : e;
+      const r = sigCanvas.getBoundingClientRect();
+      sigCtx.beginPath();
+      sigCtx.moveTo(pos.clientX - r.left, pos.clientY - r.top);
+    }));
+    ['mousemove','touchmove'].forEach(evt => sigCanvas.addEventListener(evt, e => {
+      if (!drawing) return;
+      const pos = e.touches ? e.touches[0] : e;
+      const r = sigCanvas.getBoundingClientRect();
+      sigCtx.lineTo(pos.clientX - r.left, pos.clientY - r.top);
+      sigCtx.stroke();
+      e.preventDefault();
+    }));
+    ['mouseup','mouseout','touchend'].forEach(evt => sigCanvas.addEventListener(evt, () => { drawing = false; }));
+
+    async function sendEmail(token) {
       const name = prompt('이름을 입력하세요');
       const pdfBytes = Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0));
       const pdfDoc = await PDFLib.PDFDocument.load(pdfBytes);
@@ -160,12 +183,6 @@
       const { width, height } = pngImg.scale(0.3);
       const pages = pdfDoc.getPages();
       const pageIndex = data.page - 1;
-
-      if (pageIndex < 0 || pageIndex >= pages.length) {
-        alert("서명할 페이지가 PDF에 존재하지 않습니다.");
-        return;
-      }
-
       const drawX = data.posX - 100;
       const drawY = data.posY - 105;
       pages[pageIndex].drawImage(pngImg, {
@@ -173,10 +190,8 @@
         y: pages[pageIndex].getHeight() - drawY - height,
         width, height
       });
-
       const signedPdf = await pdfDoc.save();
       const signedBase64 = btoa(String.fromCharCode(...signedPdf));
-      const pngBase64 = sigCanvas.toDataURL('image/png').split(',')[1];
       const subject = '=?UTF-8?B?' + btoa(unescape(encodeURIComponent('[전자서명 제출] ' + data.docTitle + ' - ' + name))) + '?=';
       const bodyText = `본인은 첨부된 "${data.docTitle}" 문서를 확인하였으며, 아래와 같이 서명합니다.\n\n- 제출자: ${name}\n- 제출 일시: ${new Date().toLocaleString()}`;
       const boundary = 'BOUNDARY';
@@ -194,7 +209,7 @@
         '--' + boundary,
         'Content-Type: image/png; name="signature.png"',
         'Content-Disposition: attachment; filename="signature.png"',
-        'Content-Transfer-Encoding: base64', '', pngBase64,
+        'Content-Transfer-Encoding: base64', '', sigCanvas.toDataURL('image/png').split(',')[1],
         '--' + boundary + '--'
       ];
       const emailLines = [
@@ -208,13 +223,13 @@
         apiKey: 'AIzaSyBdO8g3lJHfxoiSqgOWXp1q37zMkrkaBg4',
         discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest']
       }).then(() => {
-        gapi.client.setToken({ access_token: tokenGlobal });
+        gapi.client.setToken({ access_token: token });
         return gapi.client.gmail.users.messages.send({
           userId: 'me',
           resource: { raw: btoa(unescape(encodeURIComponent(emailBody))).replace(/\+/g, '-').replace(/\//g, '_') }
         });
       }).then(() => alert('제출 완료!')).catch(e => { console.error(e); alert('전송 실패'); }));
-    };
+    }
 
     init();
   </script>
