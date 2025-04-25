@@ -3,7 +3,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>Sign PDF</title>
+  <title>Sign PDF - 정확한 위치</title>
 </head>
 <body>
   <canvas id="pdfCanvas"></canvas>
@@ -98,7 +98,12 @@
       const page = pdfDoc.getPages()[pdfData.page - 1];
       const px = page.getWidth() * pdfData.posXPct / 100;
       const py = page.getHeight() * pdfData.posYPct / 100;
-      page.drawImage(pngImg, { x: px, y: page.getHeight() - py - height, width, height });
+      page.drawImage(pngImg, {
+        x: px - width / 2,
+        y: py - height / 2,
+        width,
+        height
+      });
       const signed = await pdfDoc.save();
       const blob = new Blob([signed], { type: "application/pdf" });
       const a = document.createElement("a");
