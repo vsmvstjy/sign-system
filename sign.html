@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
   <meta charset="UTF-8" />
   <title>전자 서명</title>
   <style>
@@ -172,94 +171,72 @@
     }));
     ['mouseup','mouseout','touchend'].forEach(evt => sigCanvas.addEventListener(evt, () => { drawing = false; }));
 
-async function sendEmail(token) {
+    async function sendEmail(token) {
   const name = prompt('이름을 입력하세요');
+  const pdfBase64 = data.pdfBase64;
   const pngData = sigCanvas.toDataURL('image/png');
   const pngBase64 = pngData.split(',')[1];
-const rawPdf = Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0));
 
-  // ✅ PDF-lib로 signed PDF 생성
   const { PDFDocument } = PDFLib;
-const pdfDoc = await PDFDocument.load(rawPdf);
+  const raw = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
+  const pdfDoc = await PDFDocument.load(raw);
   const pngImage = await pdfDoc.embedPng(pngData);
-  const page = pdfDoc.getPage(data.page - 1); // 0-indexed
-
-  // 서명 이미지 크기 비율 및 위치 보정
-  const scaleRatio = 0.2;
-  const pngDims = pngImage.scale(scaleRatio);
+  const page = pdfDoc.getPage(data.page - 1);
+  const pngDims = pngImage.scale(0.2);
   const x = data.posX;
-  const y = page.getHeight() - data.posY - pngDims.height; // PDF는 좌하단 기준이라 Y 반전
-
-  page.drawImage(pngImage, {
-    x,
-    y,
-    width: pngDims.width,
-    height: pngDims.height,
-  });
-
+  const y = page.getHeight() - data.posY - pngDims.height;
+  page.drawImage(pngImage, { x, y, width: pngDims.width, height: pngDims.height });
   const signedPdfBytes = await pdfDoc.save();
   const signedPdfBase64 = btoa(String.fromCharCode(...new Uint8Array(signedPdfBytes)));
 
-  const subject = '=?UTF-8?B?' + btoa(unescape(encodeURIComponent('[전자서명 제출] ' + data.docTitle + ' - ' + name))) + '?=';
-  const bodyText = `본인은 첨부된 "${data.docTitle}" 문서를 확인하였으며, 아래와 같이 서명합니다.
+      const boundary = 'BOUNDARY';
+      const bodyText = `본인은 첨부된 \"${data.docTitle}\" 문서를 확인하였으며, 아래와 같이 서명합니다.\n\n- 제출자: ${name}\n- 제출 일시: ${new Date().toLocaleString()}`;
 
-- 제출자: ${name}
-- 제출 일시: ${new Date().toLocaleString()}`;
+      const parts = [
+  '--' + boundary,
+  'Content-Type: text/plain; charset=UTF-8', '',
+  bodyText,
+  '--' + boundary,
+  'Content-Type: application/pdf; name="document.pdf"',
+  'Content-Disposition: attachment; filename="document.pdf"',
+  'Content-Transfer-Encoding: base64', '',
+  pdfBase64,
+  '--' + boundary,
+  'Content-Type: image/png; name="signature.png"',
+  'Content-Disposition: attachment; filename="signature.png"',
+  'Content-Transfer-Encoding: base64', '',
+  pngBase64,
+  '--' + boundary,
+  'Content-Type: application/pdf; name="signed.pdf"',
+  'Content-Disposition: attachment; filename="signed.pdf"',
+  'Content-Transfer-Encoding: base64', '',
+  signedPdfBase64,
+  '--' + boundary + '--'
+];
 
-  const boundary = 'BOUNDARY';
-  const parts = [
-    '--' + boundary,
-    'Content-Type: text/plain; charset=UTF-8',
-    '',
-    bodyText,
-    '--' + boundary,
-    'Content-Type: application/pdf; name="document.pdf"',
-    'Content-Disposition: attachment; filename="document.pdf"',
-    'Content-Transfer-Encoding: base64',
-    '',
-    data.pdfBase64,
-    '--' + boundary,
-    'Content-Type: image/png; name="signature.png"',
-    'Content-Disposition: attachment; filename="signature.png"',
-    'Content-Transfer-Encoding: base64',
-    '',
-    pngBase64,
-    '--' + boundary,
-    'Content-Type: application/pdf; name="signed.pdf"',
-    'Content-Disposition: attachment; filename="signed.pdf"',
-    'Content-Transfer-Encoding: base64',
-    '',
-    signedPdfBase64,
-    '--' + boundary + '--'
-  ];
+      const subject = '=?UTF-8?B?' + btoa(unescape(encodeURIComponent('[전자서명 제출] ' + data.docTitle + ' - ' + name))) + '?=';
+      const emailLines = [
+        'MIME-Version: 1.0',
+        `To: ${data.receiver}`,
+        `Subject: ${subject}`,
+        'Content-Type: multipart/mixed; boundary=' + boundary, '',
+        ...parts
+      ];
 
-  const emailLines = [
-    'MIME-Version: 1.0',
-    `To: ${data.receiver}`,
-    `Subject: ${subject}`,
-    'Content-Type: multipart/mixed; boundary=' + boundary,
-    '',
-    ...parts
-  ];
-  const emailBody = emailLines.join('\r\n');
-
-  gapi.load('client', () => gapi.client.init({
-    apiKey: 'AIzaSyBdO8g3lJHfxoiSqgOWXp1q37zMkrkaBg4',
-    discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest']
-  }).then(() => {
-    gapi.client.setToken({ access_token: token });
-    return gapi.client.gmail.users.messages.send({
-      userId: 'me',
-      resource: {
-        raw: btoa(unescape(encodeURIComponent(emailBody)))
-          .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-      }
-    });
-  }).then(() => alert('제출 완료!')).catch(e => {
-    console.error(e);
-    alert('전송 실패');
-  }));
-}
+      const emailBody = emailLines.join('\r\n');
+      gapi.load('client', () => gapi.client.init({
+        apiKey: 'AIzaSyBdO8g3lJHfxoiSqgOWXp1q37zMkrkaBg4',
+        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest']
+      }).then(() => {
+        gapi.client.setToken({ access_token: token });
+        return gapi.client.gmail.users.messages.send({
+          userId: 'me',
+          resource: {
+            raw: btoa(unescape(encodeURIComponent(emailBody))).replace(/\+/g, '-').replace(/\//g, '_')
+          }
+        });
+      }).then(() => alert('제출 완료!')).catch(e => { console.error(e); alert('전송 실패'); });
+    }
 
     init();
   </script>
