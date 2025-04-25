@@ -38,7 +38,16 @@
   overflow: auto;
 }
 
-    #sigCanvas { border: 1px solid #ccc; touch-action: none; }
+#sigCanvas {
+  width: 90vw;
+  height: 45vw;  /* 가로의 절반 비율로 */
+  max-width: 700px;
+  max-height: 350px;
+  border: 1px solid #ccc;
+  touch-action: none;
+  background: white;
+}
+
     button { margin: 10px; padding: 10px; }
   </style>
 </head>
@@ -55,7 +64,7 @@
   <div id="sigModal" class="modal">
     <div class="modal-content">
       <h3>서명해 주세요</h3>
-      <canvas id="sigCanvas" width="600" height="300"></canvas><br>
+      <canvas id="sigCanvas"></canvas><br>
       <button id="clearSig">지우기</button>
       <button id="saveSig">완료</button>
     </div>
