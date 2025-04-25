@@ -62,48 +62,32 @@
     const pageInfo = document.getElementById('pageInfo');
 
     async function init() {
-      try {
-        const params = new URLSearchParams(location.search);
-        const id = params.get('id');
-        if (!id) throw new Error("URL에 id 없음");
-
-        const snap = await getDoc(doc(db, 'signRequests', id));
-        if (!snap.exists()) throw new Error("Firestore에 문서 없음");
-
-        data = snap.data();
-        console.log('✅ Firestore 데이터:', data);
-
-        const raw = Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0));
-        pdfRef = await pdfjsLib.getDocument({ data: raw }).promise;
-        totalPages = pdfRef.numPages;
-        renderPage(currentPage);
-      } catch (err) {
-        alert('에러 발생: ' + err.message);
-        console.error('❌ 초기화 실패:', err);
-      }
+      const params = new URLSearchParams(location.search);
+      const id = params.get('id');
+      const snap = await getDoc(doc(db, 'signRequests', id));
+      if (!snap.exists()) { alert('잘못된 링크입니다.'); return; }
+      data = snap.data();
+      const raw = Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0));
+      pdfRef = await pdfjsLib.getDocument({ data: raw }).promise;
+      totalPages = pdfRef.numPages;
+      renderPage(currentPage);
     }
 
     async function renderPage(n) {
-      try {
-        const page = await pdfRef.getPage(n);
-        const vp = page.getViewport({ scale: 1.5 });
-        canvas.width = vp.width;
-        canvas.height = vp.height;
-        await page.render({ canvasContext: ctx, viewport: vp }).promise;
-        pageInfo.innerText = `${n} / ${totalPages}`;
-
-        if (parseInt(data.page) === n) {
-          const mx = data.posX * canvas.width;
-          const my = data.posY * canvas.height;
-          console.log('📍 마커 위치:', mx, my);
-          marker.style.display = 'block';
-          marker.style.left = `${mx - marker.offsetWidth / 2}px`;
-          marker.style.top = `${my - marker.offsetHeight / 2}px`;
-        } else {
-          marker.style.display = 'none';
-        }
-      } catch (err) {
-        console.error('❌ 페이지 렌더링 실패:', err);
+      const page = await pdfRef.getPage(n);
+      const vp = page.getViewport({ scale: 1.5 });
+      canvas.width = vp.width;
+      canvas.height = vp.height;
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      pageInfo.innerText = `${n} / ${totalPages}`;
+      if (parseInt(data.page) === n) {
+        const mx = data.posX * canvas.width;
+        const my = data.posY * canvas.height;
+        marker.style.left = `${mx - 50}px`;
+        marker.style.top = `${my - 20}px`;
+        marker.style.display = 'block';
+      } else {
+        marker.style.display = 'none';
       }
     }
 
@@ -113,6 +97,17 @@
     document.getElementById('nextPage').onclick = () => {
       if (currentPage < totalPages) { currentPage++; renderPage(currentPage); }
     };
+
+    canvas.addEventListener('click', e => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const mx = data.posX * canvas.width;
+      const my = data.posY * canvas.height;
+      if (parseInt(data.page) === currentPage && Math.hypot(x - mx, y - my) < 50) {
+        alert('🖋️ 서명 클릭됨 — 여기에 startAuth() 연결 가능');
+      }
+    });
 
     init();
   </script>
