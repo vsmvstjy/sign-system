@@ -133,9 +133,11 @@
 
     canvas.addEventListener('click', e => {
       const rect = canvas.getBoundingClientRect();
-      posX = e.clientX - rect.left;
-      posY = e.clientY - rect.top;
-      posPage = currentPage;
+  const clickX = e.clientX - rect.left;
+  const clickY = e.clientY - rect.top;
+        posX = clickX / canvas.width;
+  posY = clickY / canvas.height;
+  posPage = currentPage;
       marker.style.left = `${e.clientX - 50}px`;
       marker.style.top = `${e.clientY - 20 + window.scrollY}px`;
       marker.style.display = 'block';
