@@ -232,7 +232,7 @@
         return gapi.client.gmail.users.messages.send({
           userId: 'me',
           resource: {
-            raw: btoa(unescape(encodeURIComponent(emailBody))).replace(/\+/g, '-').replace(/\//g, '_')
+            raw: btoa(unescape(encodeURIComponent(emailBody))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
           }
         });
       }).then(() => alert('제출 완료!')).catch(e => { console.error(e); alert('전송 실패'); });
