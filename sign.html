@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+  <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
   <meta charset="UTF-8" />
   <title>전자 서명</title>
   <style>
@@ -55,6 +56,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
   <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';</script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://apis.google.com/js/api.js"></script>
@@ -91,32 +93,27 @@
       renderPage(currentPage);
     }
 
-async function renderPage(n) {
-  const page = await pdfRef.getPage(n);
-  const vp = page.getViewport({ scale: 1.5 });
-  canvas.width = vp.width;
-  canvas.height = vp.height;
-  await page.render({ canvasContext: ctx, viewport: vp }).promise;
-  pageInfo.innerText = `${n} / ${totalPages}`;
-
-  if (n === data.page) {
-    const mx = data.posX / vp.width * canvas.width;
-
-    // 안전한 보정식 (에러 방지용 변수 초기화 포함)
-    let my = data.posY / vp.height * canvas.height;
-    if (!isNaN(my)) {
-      const correction = my * 0.08;
-      my = my + correction;
+    async function renderPage(n) {
+      const page = await pdfRef.getPage(n);
+      const vp = page.getViewport({ scale: 1.5 });
+      canvas.width = vp.width;
+      canvas.height = vp.height;
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      pageInfo.innerText = `${n} / ${totalPages}`;
+      if (n === data.page) {
+        const mx = data.posX / vp.width * canvas.width;
+        let my = data.posY / vp.height * canvas.height;
+        if (!isNaN(my)) {
+          const correction = my * 0.08;
+          my = my + correction;
+        }
+        marker.style.left = `${mx - marker.offsetWidth / 2}px`;
+        marker.style.top = `${my - marker.offsetHeight / 2}px`;
+        marker.style.display = 'block';
+      } else {
+        marker.style.display = 'none';
+      }
     }
-
-    marker.style.left = `${mx - marker.offsetWidth / 2}px`;
-    marker.style.top = `${my - marker.offsetHeight / 2}px`;
-    marker.style.display = 'block';
-  } else {
-    marker.style.display = 'none';
-  }
-}
-
 
     document.getElementById('prevPage').onclick = () => {
       if (currentPage > 1) { currentPage--; renderPage(currentPage); }
@@ -156,6 +153,7 @@ async function renderPage(n) {
       sigModal.style.display = 'none';
       await sendEmail(tokenGlobal);
     };
+
     let drawing = false;
     ['mousedown','touchstart'].forEach(evt => sigCanvas.addEventListener(evt, e => {
       drawing = true;
@@ -174,56 +172,94 @@ async function renderPage(n) {
     }));
     ['mouseup','mouseout','touchend'].forEach(evt => sigCanvas.addEventListener(evt, () => { drawing = false; }));
 
-    async function sendEmail(token) {
-      const name = prompt('이름을 입력하세요');
-      const pdfBase64 = data.pdfBase64;
-      const pngData = sigCanvas.toDataURL('image/png');
-      const pngBase64 = pngData.split(',')[1];
-      const subject = '=?UTF-8?B?' + btoa(unescape(encodeURIComponent('[전자서명 제출] ' + data.docTitle + ' - ' + name))) + '?=';
-      const bodyText = `본인은 첨부된 "${data.docTitle}" 문서를 확인하였으며, 아래와 같이 서명합니다.
+async function sendEmail(token) {
+  const name = prompt('이름을 입력하세요');
+  const pngData = sigCanvas.toDataURL('image/png');
+  const pngBase64 = pngData.split(',')[1];
+  const rawPdf = atob(data.pdfBase64);
+
+  // ✅ PDF-lib로 signed PDF 생성
+  const { PDFDocument } = PDFLib;
+  const pdfDoc = await PDFDocument.load(rawPdf);
+  const pngImage = await pdfDoc.embedPng(pngData);
+  const page = pdfDoc.getPage(data.page - 1); // 0-indexed
+
+  // 서명 이미지 크기 비율 및 위치 보정
+  const scaleRatio = 0.2;
+  const pngDims = pngImage.scale(scaleRatio);
+  const x = data.posX;
+  const y = page.getHeight() - data.posY - pngDims.height; // PDF는 좌하단 기준이라 Y 반전
+
+  page.drawImage(pngImage, {
+    x,
+    y,
+    width: pngDims.width,
+    height: pngDims.height,
+  });
+
+  const signedPdfBytes = await pdfDoc.save();
+  const signedPdfBase64 = btoa(String.fromCharCode(...new Uint8Array(signedPdfBytes)));
+
+  const subject = '=?UTF-8?B?' + btoa(unescape(encodeURIComponent('[전자서명 제출] ' + data.docTitle + ' - ' + name))) + '?=';
+  const bodyText = `본인은 첨부된 "${data.docTitle}" 문서를 확인하였으며, 아래와 같이 서명합니다.
 
 - 제출자: ${name}
 - 제출 일시: ${new Date().toLocaleString()}`;
-      const boundary = 'BOUNDARY';
-      const parts = [
-        '--' + boundary,
-        'Content-Type: text/plain; charset=UTF-8',
-        '',
-        bodyText,
-        '--' + boundary,
-        'Content-Type: application/pdf; name="document.pdf"',
-        'Content-Disposition: attachment; filename="document.pdf"',
-        'Content-Transfer-Encoding: base64',
-        '',
-        pdfBase64,
-        '--' + boundary,
-        'Content-Type: image/png; name="signature.png"',
-        'Content-Disposition: attachment; filename="signature.png"',
-        'Content-Transfer-Encoding: base64',
-        '',
-        pngBase64,
-        '--' + boundary + '--'
-      ];
-      const emailLines = [
-        'MIME-Version: 1.0',
-        `To: ${data.receiver}`,
-        `Subject: ${subject}`,
-        'Content-Type: multipart/mixed; boundary=' + boundary,
-        '',
-        ...parts
-      ];
-      const emailBody = emailLines.join('\r\n');
-      gapi.load('client', () => gapi.client.init({
-        apiKey: 'AIzaSyBdO8g3lJHfxoiSqgOWXp1q37zMkrkaBg4',
-        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest']
-      }).then(() => {
-        gapi.client.setToken({ access_token: token });
-        return gapi.client.gmail.users.messages.send({
-          userId: 'me',
-          resource: { raw: btoa(unescape(encodeURIComponent(emailBody))).replace(/\+/g, '-').replace(/\//g, '_') }
-        });
-      }).then(() => alert('제출 완료!')).catch(e => { console.error(e); alert('전송 실패'); }));
-    }
+
+  const boundary = 'BOUNDARY';
+  const parts = [
+    '--' + boundary,
+    'Content-Type: text/plain; charset=UTF-8',
+    '',
+    bodyText,
+    '--' + boundary,
+    'Content-Type: application/pdf; name="document.pdf"',
+    'Content-Disposition: attachment; filename="document.pdf"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    data.pdfBase64,
+    '--' + boundary,
+    'Content-Type: image/png; name="signature.png"',
+    'Content-Disposition: attachment; filename="signature.png"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    pngBase64,
+    '--' + boundary,
+    'Content-Type: application/pdf; name="signed.pdf"',
+    'Content-Disposition: attachment; filename="signed.pdf"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    signedPdfBase64,
+    '--' + boundary + '--'
+  ];
+
+  const emailLines = [
+    'MIME-Version: 1.0',
+    `To: ${data.receiver}`,
+    `Subject: ${subject}`,
+    'Content-Type: multipart/mixed; boundary=' + boundary,
+    '',
+    ...parts
+  ];
+  const emailBody = emailLines.join('\r\n');
+
+  gapi.load('client', () => gapi.client.init({
+    apiKey: 'AIzaSyBdO8g3lJHfxoiSqgOWXp1q37zMkrkaBg4',
+    discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest']
+  }).then(() => {
+    gapi.client.setToken({ access_token: token });
+    return gapi.client.gmail.users.messages.send({
+      userId: 'me',
+      resource: {
+        raw: btoa(unescape(encodeURIComponent(emailBody)))
+          .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+      }
+    });
+  }).then(() => alert('제출 완료!')).catch(e => {
+    console.error(e);
+    alert('전송 실패');
+  }));
+}
 
     init();
   </script>
