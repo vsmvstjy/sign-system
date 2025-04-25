@@ -98,16 +98,19 @@
       canvas.height = vp.height;
       await page.render({ canvasContext: ctx, viewport: vp }).promise;
       pageInfo.innerText = `${n} / ${totalPages}`;
-      if (n === data.page) {
-        const mx = data.posX / vp.width * canvas.width;
-        const my = data.posY / vp.height * canvas.height;
-        marker.style.left = `${mx - marker.offsetWidth/2}px`;
-        marker.style.top = `${my - marker.offsetHeight/2}px`;
-        marker.style.display = 'block';
-      } else {
-        marker.style.display = 'none';
-      }
-    }
+if (n === data.page) {
+  const mx = data.posX / vp.width * canvas.width;
+
+  const rawY = data.posY / vp.height * canvas.height;
+  const correction = rawY * 0.05; // 아래로 갈수록 더 보정
+  const my = rawY + correction;
+
+  marker.style.left = `${mx - marker.offsetWidth / 2}px`;
+  marker.style.top = `${my - marker.offsetHeight / 2}px`;
+  marker.style.display = 'block';
+} else {
+  marker.style.display = 'none';
+}
 
     document.getElementById('prevPage').onclick = () => {
       if (currentPage > 1) { currentPage--; renderPage(currentPage); }
