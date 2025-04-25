@@ -83,7 +83,8 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
   <script>
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
   </script>
   <script type="module">
     import { db } from './firebase-config.js';
@@ -112,12 +113,17 @@
     async function renderPage(n) {
       currentPage = n;
       const page = await pdfDoc.getPage(n);
-      const vp = page.getViewport({ scale: 1.5 });
+      const vp = page.getViewport({ scale: 1.2 });
       canvas.width = vp.width;
       canvas.height = vp.height;
       await page.render({ canvasContext: ctx, viewport: vp }).promise;
       pageInfo.textContent = `Page ${n}/${totalPages}`;
-      if (n !== posPage) {
+      if (n === posPage) {
+        const rect = canvas.getBoundingClientRect();
+        marker.style.left = `${rect.left + posX - 50}px`;
+        marker.style.top = `${rect.top + posY - 20 + window.scrollY}px`;
+        marker.style.display = 'block';
+      } else {
         marker.style.display = 'none';
       }
     }
@@ -127,12 +133,13 @@
 
     canvas.addEventListener('click', e => {
       const rect = canvas.getBoundingClientRect();
-      posX = (e.clientX - rect.left) / canvas.width;
-      posY = (e.clientY - rect.top) / canvas.height;
+      posX = e.clientX - rect.left;
+      posY = e.clientY - rect.top;
       posPage = currentPage;
       marker.style.left = `${e.clientX - 50}px`;
       marker.style.top = `${e.clientY - 20 + window.scrollY}px`;
       marker.style.display = 'block';
+      renderPage(currentPage);
     });
 
     document.getElementById('generate').onclick = async () => {
