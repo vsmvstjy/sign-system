@@ -214,14 +214,15 @@
   '--' + boundary + '--'
 ];
 
-      const subject = '=?UTF-8?B?' + btoa(unescape(encodeURIComponent('[전자서명 제출] ' + data.docTitle + ' - ' + name))) + '?=';
-      const emailLines = [
-        'MIME-Version: 1.0',
-        `To: ${data.receiver}`,
-        `Subject: ${subject}`,
-        'Content-Type: multipart/mixed; boundary=' + boundary, '',
-        ...parts
-      ];
+const subject = '=?UTF-8?B?' + btoa(unescape(encodeURIComponent('[전자서명 제출] ' + data.docTitle + ' - ' + name))) + '?=';
+const emailLines = [
+  'MIME-Version: 1.0',
+  `To: ${data.receiver}`,
+  `Subject: ${subject}`,
+  'Content-Type: multipart/mixed; boundary=' + boundary,
+  '',
+  ...parts
+];
 
 const emailBody = emailLines.join('\r\n');
 const encodedEmail = btoa(unescape(encodeURIComponent(emailBody)))
