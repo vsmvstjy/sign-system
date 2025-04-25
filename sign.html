@@ -176,11 +176,11 @@ async function sendEmail(token) {
   const name = prompt('이름을 입력하세요');
   const pngData = sigCanvas.toDataURL('image/png');
   const pngBase64 = pngData.split(',')[1];
-  const rawPdf = atob(data.pdfBase64);
+const rawPdf = Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0));
 
   // ✅ PDF-lib로 signed PDF 생성
   const { PDFDocument } = PDFLib;
-  const pdfDoc = await PDFDocument.load(rawPdf);
+const pdfDoc = await PDFDocument.load(rawPdf);
   const pngImage = await pdfDoc.embedPng(pngData);
   const page = pdfDoc.getPage(data.page - 1); // 0-indexed
 
