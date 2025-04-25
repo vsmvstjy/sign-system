@@ -3,25 +3,24 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>문서 업로드 및 서명 위치 지정 (퍼센트 방식)</title>
+  <title>Upload (PDF 원본 기준 퍼센트)</title>
   <style>
-    body { font-family: sans-serif; margin: 0; padding: 20px; background: #f9f9f9; }
+    body { font-family: sans-serif; background: #f9f9f9; padding: 20px; }
     canvas { border: 1px solid #ccc; display: block; margin: 20px auto; cursor: crosshair; }
     #marker {
       position: absolute; width: 100px; height: 40px;
-      background-color: #fff8dc; border: 2px dashed #ff5c5c;
+      background: #fff8dc; border: 2px dashed #ff5c5c;
       border-radius: 6px; display: none; pointer-events: none;
       text-align: center; line-height: 40px;
       font-weight: bold; color: #ff5c5c; font-size: 16px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
     }
   </style>
 </head>
 <body>
-  <h3>PDF 업로드 및 서명 위치 지정 (퍼센트 기반)</h3>
+  <h3>문서 업로드 및 서명 위치 지정</h3>
   <input type="file" id="pdfFile" accept="application/pdf"><br>
   <input type="text" id="docTitle" placeholder="문서 제목"><br>
-  <input type="email" id="receiver" placeholder="회신 받을 이메일"><br>
+  <input type="email" id="receiver" placeholder="받는 이메일"><br>
   <button id="generate">링크 생성</button>
   <p id="linkOutput"></p>
   <canvas id="pdfCanvas"></canvas>
@@ -43,31 +42,37 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
+    let pdfDoc, page, viewport;
+    let posXPct = 0, posYPct = 0;
     const canvas = document.getElementById('pdfCanvas');
     const ctx = canvas.getContext('2d');
     const marker = document.getElementById('marker');
-    let pdfDoc, currentPage = 1, pdfBase64 = '', posXPct = 0, posYPct = 0;
 
-    document.getElementById('pdfFile').addEventListener('change', e => {
+    document.getElementById('pdfFile').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       const reader = new FileReader();
       reader.onload = async () => {
-        pdfBase64 = reader.result.split(',')[1];
-        const raw = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
+        const base64 = reader.result.split(',')[1];
+        const raw = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
         pdfDoc = await pdfjsLib.getDocument({ data: raw }).promise;
-        const page = await pdfDoc.getPage(1);
-        const vp = page.getViewport({ scale: 1.5 });
-        canvas.width = vp.width;
-        canvas.height = vp.height;
-        await page.render({ canvasContext: ctx, viewport: vp }).promise;
+        page = await pdfDoc.getPage(1);
+        viewport = page.getViewport({ scale: 1.5 });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        window.pdfBase64 = base64;
       };
       reader.readAsDataURL(file);
     });
 
-    canvas.addEventListener('click', e => {
+    canvas.addEventListener('click', (e) => {
       const rect = canvas.getBoundingClientRect();
-      posXPct = ((e.clientX - rect.left) / rect.width) * 100;
-      posYPct = ((e.clientY - rect.top) / rect.height) * 100;
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const clickX = (e.clientX - rect.left) * scaleX;
+      const clickY = (e.clientY - rect.top) * scaleY;
+      posXPct = clickX / viewport.width * 100;
+      posYPct = clickY / viewport.height * 100;
       marker.style.left = `${e.clientX - 50}px`;
       marker.style.top = `${e.clientY - 20 + window.scrollY}px`;
       marker.style.display = 'block';
@@ -80,7 +85,7 @@
       await setDoc(doc(db, 'signRequests', id), {
         docTitle: title,
         receiver,
-        pdfBase64,
+        pdfBase64: window.pdfBase64,
         posXPct,
         posYPct,
         page: 1,
