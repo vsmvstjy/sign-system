@@ -105,7 +105,7 @@ async function renderPage(n) {
     // 안전한 보정식 (에러 방지용 변수 초기화 포함)
     let my = data.posY / vp.height * canvas.height;
     if (!isNaN(my)) {
-      const correction = my * 0.05;
+      const correction = my * 0.1;
       my = my + correction;
     }
 
