@@ -2,8 +2,8 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <title>서명 PNG + PDF 첨부 이메일 전송</title>
+  <meta charset="UTF-8">
+  <title>PDF 렌더링 + 서명 (정상 작동)</title>
 </head>
 <body>
   <canvas id="pdfCanvas"></canvas>
@@ -15,15 +15,14 @@
     background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center;">
     <div style="background:white; padding:20px; border-radius:10px;">
       <h3>서명해 주세요</h3>
-      <canvas id="sigCanvas" width="400" height="200" style="border:1px solid #ccc;"></canvas><br>
+      <canvas id="sigCanvas" width="400" height="200" style="border:1px solid #ccc; background:#fff;"></canvas><br>
       <button id="clearSig">지우기</button>
       <button id="saveSig">제출</button>
     </div>
   </div>
 
+  <!-- 필수 라이브러리 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="https://apis.google.com/js/api.js"></script>
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
     import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
@@ -36,14 +35,17 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    let data, pdfRef;
     const canvas = document.getElementById("pdfCanvas");
     const ctx = canvas.getContext("2d");
     const marker = document.getElementById("marker");
 
-    const sigModal = document.getElementById("sigModal");
     const sigCanvas = document.getElementById("sigCanvas");
     const sigCtx = sigCanvas.getContext("2d");
+
+    // ✍️ 서명 기능 설정
+    sigCtx.strokeStyle = "#000";
+    sigCtx.lineWidth = 2;
+    sigCtx.lineCap = "round";
 
     let isDrawing = false;
     sigCanvas.addEventListener("mousedown", e => {
@@ -59,85 +61,9 @@
     });
     sigCanvas.addEventListener("mouseup", () => isDrawing = false);
 
-    document.getElementById("clearSig").onclick = () => sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
-    document.getElementById("saveSig").onclick = async () => {
-      sigModal.style.display = "none";
-      await sendEmail(tokenGlobal);
-    };
-
-    let tokenGlobal;
-    window.startAuth = () => google.accounts.oauth2.initTokenClient({
-      client_id: '972595541590-k962h1slhqu6cm1r5fhp9nvdd8hu21vk.apps.googleusercontent.com',
-      scope: 'https://www.googleapis.com/auth/gmail.send',
-      callback: token => {
-        tokenGlobal = token.access_token;
-        openModal();
-      }
-    }).requestAccessToken();
-
-    function openModal() {
+    document.getElementById("clearSig").onclick = () => {
       sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
-      sigModal.style.display = "flex";
-    }
-
-    async function sendEmail(token) {
-      const name = "이주영";
-      const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
-
-      const sigPng = sigCanvas.toDataURL("image/png").split(',')[1];
-      const pdfRaw = data.pdfBase64;
-
-      const boundary = 'boundary12345';
-      const subject = '=?UTF-8?B?' + btoa(unescape(encodeURIComponent(`[전자서명 제출] ${data.docTitle} - ${name}`))) + '?=';
-      const bodyText = `본인은 첨부된 "${data.docTitle}" 문서를 열람하였고, 이에 동의하여 아래와 같이 서명합니다.
-
-- 제출자 이름: ${name}
-- 제출 일시: ${now}`;
-
-      const body = [
-        'MIME-Version: 1.0',
-        `To: ${data.receiver}`,
-        `Subject: ${subject}`,
-        `Content-Type: multipart/mixed; boundary="${boundary}"`,
-        '',
-        `--${boundary}`,
-        'Content-Type: text/plain; charset="UTF-8"',
-        '',
-        bodyText,
-        '',
-        `--${boundary}`,
-        'Content-Type: application/pdf',
-        'Content-Disposition: attachment; filename="document.pdf"',
-        'Content-Transfer-Encoding: base64',
-        '',
-        pdfRaw,
-        '',
-        `--${boundary}`,
-        'Content-Type: image/png',
-        'Content-Disposition: attachment; filename="signature.png"',
-        'Content-Transfer-Encoding: base64',
-        '',
-        sigPng,
-        `--${boundary}--`
-      ].join('
-');
-
-      gapi.load('client', () => gapi.client.init({
-        apiKey: 'AIzaSyBdO8g3lJHfxoiSqgOWXp1q37zMkrkaBg4',
-        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest']
-      }).then(() => {
-        gapi.client.setToken({ access_token: token });
-        return gapi.client.gmail.users.messages.send({
-          userId: 'me',
-          resource: {
-            raw: btoa(unescape(encodeURIComponent(body))).replace(/\+/g, '-').replace(/\//g, '_')
-          }
-        });
-      }).then(() => alert('제출이 완료되었습니다.')).catch(e => {
-        console.error(e);
-        alert('전송 실패');
-      }));
-    }
+    };
 
     async function init() {
       const params = new URLSearchParams(location.search);
@@ -147,25 +73,30 @@
         alert("유효하지 않은 링크입니다.");
         return;
       }
-      data = snap.data();
+
+      const data = snap.data();
       const raw = Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0));
-      pdfRef = await pdfjsLib.getDocument({ data: raw }).promise;
-      const page = await pdfRef.getPage(data.page);
+      const pdf = await pdfjsLib.getDocument({ data: raw }).promise;
+      const page = await pdf.getPage(data.page);
       const vp = page.getViewport({ scale: 1.5 });
       canvas.width = vp.width;
       canvas.height = vp.height;
       await page.render({ canvasContext: ctx, viewport: vp }).promise;
-      const x = canvas.width * data.posX / vp.width;
-      const y = canvas.height * data.posY / vp.height;
+
+      // 위치 표시
+      const x = canvas.width * data.posXPct / 100;
+      const y = canvas.height * data.posYPct / 100;
       marker.style.left = `${x - 50}px`;
       marker.style.top = `${y - 20}px`;
       marker.style.display = "block";
+
+      // 클릭 시 서명 열기
       canvas.onclick = (e) => {
         const rect = canvas.getBoundingClientRect();
         const cx = e.clientX - rect.left;
         const cy = e.clientY - rect.top;
         if (Math.abs(cx - x) < 100 && Math.abs(cy - y) < 40) {
-          startAuth();
+          document.getElementById("sigModal").style.display = "flex";
         }
       };
     }
