@@ -159,9 +159,9 @@ let drawing = false;
       const page = pdfLibDoc.getPage(data.page - 1);
       const dims = img.scale(0.2);
       const x = data.posX - dims.width/2;
-      const adjustX = -20; // x축 왼쪽으로 5 이동
+const adjustY = data.posX * 0.1; // 5% 비례 조정
 const adjustY = data.posY * 0.22; // 5% 비례 조정
-      const x = Math.round((data.posX - dims.width/2) + adjustX);
+const x = page.getHeight() - data.posX - dims.height + adjustX;
 const y = page.getHeight() - data.posY - dims.height + adjustY;
       page.drawImage(img, { x, y, width: dims.width, height: dims.height });
       const signedBytes = await pdfLibDoc.save();
