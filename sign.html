@@ -16,7 +16,7 @@
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
     .modal-content { background: #fff; padding: 20px; border-radius: 8px; text-align: center; }
     #sigCanvas { border: 1px solid #ccc; touch-action: none; }
-    button { margin: 10px; padding: 10px; }
+    button { margin: 10px; padding: 20px 40px; font-size: 36px; border-radius: 10px; }
   </style>
 </head>
 <body>
@@ -105,10 +105,17 @@
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
-      const centerX = parseFloat(marker.style.left) + marker.offsetWidth/2;
-      const centerY = parseFloat(marker.style.top) + marker.offsetHeight/2;
-      if (currentPage === data.page && Math.hypot(x - centerX, y - centerY) < 50) {
-        startAuth();
+      if (currentPage === data.page) {
+        const markerLeft = parseFloat(marker.style.left);
+        const markerTop = parseFloat(marker.style.top);
+        if (
+          x >= markerLeft &&
+          x <= markerLeft + marker.offsetWidth &&
+          y >= markerTop &&
+          y <= markerTop + marker.offsetHeight
+        ) {
+          startAuth();
+        }
       }
     });
 
@@ -121,32 +128,24 @@
       sigModal.style.display = 'none';
       await sendEmail();
     };
-let drawing = false;
 
-['mousedown', 'touchstart'].forEach(evt =>
-  sigCanvas.addEventListener(evt, e => {
-    drawing = true;
-    const pos = e.touches ? e.touches[0] : e;
-    const rect = sigCanvas.getBoundingClientRect();
-    sigCtx.beginPath();
-    sigCtx.moveTo(pos.clientX - rect.left, pos.clientY - rect.top);
-  })
-);
-
-['mousemove', 'touchmove'].forEach(evt =>
-  sigCanvas.addEventListener(evt, e => {
-    if (!drawing) return;
-    const pos = e.touches ? e.touches[0] : e;
-    const rect = sigCanvas.getBoundingClientRect();
-    sigCtx.lineTo(pos.clientX - rect.left, pos.clientY - rect.top);
-    sigCtx.stroke();
-    e.preventDefault();
-  })
-);
-
-['mouseup', 'touchend', 'mouseout'].forEach(evt =>
-  sigCanvas.addEventListener(evt, () => drawing = false)
-);
+    let drawing = false;
+    ['mousedown','touchstart'].forEach(evt => sigCanvas.addEventListener(evt, e => {
+      drawing = true;
+      const pos = e.touches ? e.touches[0] : e;
+      const rect = sigCanvas.getBoundingClientRect();
+      sigCtx.beginPath();
+      sigCtx.moveTo(pos.clientX - rect.left, pos.clientY - rect.top);
+    }));
+    ['mousemove','touchmove'].forEach(evt => sigCanvas.addEventListener(evt, e => {
+      if (!drawing) return;
+      const pos = e.touches ? e.touches[0] : e;
+      const rect = sigCanvas.getBoundingClientRect();
+      sigCtx.lineTo(pos.clientX - rect.left, pos.clientY - rect.top);
+      sigCtx.stroke();
+      e.preventDefault();
+    }));
+    ['mouseup','touchend','mouseout'].forEach(evt => sigCanvas.addEventListener(evt, () => drawing = false));
 
     async function sendEmail() {
       const name = prompt('이름을 입력하세요');
@@ -161,17 +160,16 @@ let drawing = false;
       const y = page.getHeight() - data.posY - dims.height;
       page.drawImage(img, { x, y, width: dims.width, height: dims.height });
       const signedBytes = await pdfLibDoc.save();
-function uint8ToBase64(uint8Array) {
-  let binary = '';
-  for (let i = 0; i < uint8Array.length; i++) {
-    binary += String.fromCharCode(uint8Array[i]);
-  }
-  return btoa(binary);
-}
 
-// 사용
-const signedBase64 = uint8ToBase64(signedBytes);
+      function uint8ToBase64(uint8Array) {
+        let binary = '';
+        for (let i = 0; i < uint8Array.length; i++) {
+          binary += String.fromCharCode(uint8Array[i]);
+        }
+        return btoa(binary);
+      }
 
+      const signedBase64 = uint8ToBase64(signedBytes);
 
       const boundary = 'BOUNDARY';
       const bodyText = `본인은 첨부된 "${data.docTitle}" 문서를 확인하였으며, 아래와 같이 서명합니다.\n\n- 제출자: ${name}\n- 제출 일시: ${new Date().toLocaleString()}`;
