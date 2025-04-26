@@ -12,6 +12,7 @@
       background: #fff8dc; border: 2px dashed #ff5c5c;
       border-radius: 6px; display: none;
       text-align: center; line-height: 40px; font-weight: bold; color: #ff5c5c;
+      pointer-events: none;
     }
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
     .modal-content { background: #fff; padding: 20px; border-radius: 8px; text-align: center; }
@@ -106,8 +107,8 @@
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       const centerX = parseFloat(marker.style.left) + marker.offsetWidth/2;
-      const centerY = parseFloat(marker.style.top) + marker.offsetHeight/2 + 10;
-      if (currentPage === data.page && Math.hypot(x - centerX, y - centerY) < 70) {
+      const centerY = parseFloat(marker.style.top) + marker.offsetHeight/2;
+      if (currentPage === data.page && Math.hypot(x - centerX, y - centerY) < 50) {
         startAuth();
       }
     });
