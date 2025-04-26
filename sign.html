@@ -121,6 +121,32 @@
       sigModal.style.display = 'none';
       await sendEmail();
     };
+let drawing = false;
+
+['mousedown', 'touchstart'].forEach(evt =>
+  sigCanvas.addEventListener(evt, e => {
+    drawing = true;
+    const pos = e.touches ? e.touches[0] : e;
+    const rect = sigCanvas.getBoundingClientRect();
+    sigCtx.beginPath();
+    sigCtx.moveTo(pos.clientX - rect.left, pos.clientY - rect.top);
+  })
+);
+
+['mousemove', 'touchmove'].forEach(evt =>
+  sigCanvas.addEventListener(evt, e => {
+    if (!drawing) return;
+    const pos = e.touches ? e.touches[0] : e;
+    const rect = sigCanvas.getBoundingClientRect();
+    sigCtx.lineTo(pos.clientX - rect.left, pos.clientY - rect.top);
+    sigCtx.stroke();
+    e.preventDefault();
+  })
+);
+
+['mouseup', 'touchend', 'mouseout'].forEach(evt =>
+  sigCanvas.addEventListener(evt, () => drawing = false)
+);
 
     async function sendEmail() {
       const name = prompt('이름을 입력하세요');
