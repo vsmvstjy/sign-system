@@ -160,7 +160,7 @@ let drawing = false;
       const dims = img.scale(0.2);
       const x = data.posX - dims.width/2;
 const adjustX = -5; // x축 왼쪽으로 5 이동
-const adjustY = data.posY * 0.15; // y축 비례 15% 조정
+const adjustY = data.posY * 0.1; // y축 비례 15% 조정
 
 const x = Math.round((data.posX - dims.width/2) + adjustX);
 const y = Math.round((page.getHeight() - data.posY - dims.height) + adjustY);
