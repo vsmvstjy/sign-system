@@ -162,7 +162,9 @@ const offsetX = 75; // 오른쪽으로 10포인트 이동
 const x = (data.posX ?? 0) - dims.width/2 - offsetX;
 
 const adjustY = (data.posY ?? 0) * 0.22; // 기존 y 보정 유지
-const y = page.getHeight() - (data.posY ?? 0) - dims.height + adjustY;
+      const extraAdjustment = (data.posY < 400) ? 10 : 0; 
+// posY가 작을수록 (=위쪽에 가까울수록) 추가 보정
+const y = page.getHeight() - (data.posY ?? 0) - dims.height + adjustY + extraAdjustment;
 
       page.drawImage(img, { x, y, width: dims.width, height: dims.height });
       const signedBytes = await pdfLibDoc.save();
