@@ -159,7 +159,8 @@ let drawing = false;
       const page = pdfLibDoc.getPage(data.page - 1);
       const dims = img.scale(0.2);
       const x = data.posX - dims.width/2;
-      const y = page.getHeight() - data.posY - dims.height;
+const adjustY = data.posY * 0.05; // 5% 비례 조정
+const y = page.getHeight() - data.posY - dims.height + adjustY;
       page.drawImage(img, { x, y, width: dims.width, height: dims.height });
       const signedBytes = await pdfLibDoc.save();
 function uint8ToBase64(uint8Array) {
