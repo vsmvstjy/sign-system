@@ -158,10 +158,10 @@ let drawing = false;
       const img = await pdfLibDoc.embedPng(pngData);
       const page = pdfLibDoc.getPage(data.page - 1);
       const dims = img.scale(0.2);
-const offsetX = 100; // 오른쪽으로 10포인트 이동
+const offsetX = 85; // 오른쪽으로 10포인트 이동
 const x = (data.posX ?? 0) - dims.width/2 - offsetX;
 
-const adjustY = (data.posY ?? 0) * 0.22; // 기존 y 보정 유지
+const adjustY = (data.posY ?? 0) * 0.21; // 기존 y 보정 유지
 const y = page.getHeight() - (data.posY ?? 0) - dims.height + adjustY;
 
       page.drawImage(img, { x, y, width: dims.width, height: dims.height });
