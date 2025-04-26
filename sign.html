@@ -7,7 +7,12 @@
     body { margin: 0; padding: 20px; font-family: sans-serif; background: #f9f9f9; }
     #pdfContainer { position: relative; width: 100%; max-width: 800px; margin: 0 auto; }
     canvas { display: block; width: 100%; height: auto; background: white; }
-    #marker { position: absolute; width: 100px; height: 40px; background: #fff8dc; border: 2px dashed #ff5c5c; border-radius: 6px; display: none; text-align: center; line-height: 40px; font-weight: bold; color: #ff5c5c; }
+    #marker {
+      position: absolute; width: 100px; height: 40px;
+      background: #fff8dc; border: 2px dashed #ff5c5c;
+      border-radius: 6px; display: none;
+      text-align: center; line-height: 40px; font-weight: bold; color: #ff5c5c;
+    }
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
     .modal-content { background: #fff; padding: 20px; border-radius: 8px; text-align: center; }
     #sigCanvas { border: 1px solid #ccc; touch-action: none; }
@@ -42,14 +47,14 @@
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
     import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyDrkWBu5k-2nBHhZEHwgrBrPkWSKpro6po",
-  authDomain: "sign-system-a8921.firebaseapp.com",
-  projectId: "sign-system-a8921",
-  storageBucket: "sign-system-a8921.appspot.com",
-  messagingSenderId: "356422555230",
-  appId: "1:356422555230:web:5522aefcfc133d096286cf"
-};
+    const firebaseConfig = {
+      apiKey: "AIzaSyDrkWBu5k-2nBHhZEHwgrBrPkWSKpro6po",
+      authDomain: "sign-system-a8921.firebaseapp.com",
+      projectId: "sign-system-a8921",
+      storageBucket: "sign-system-a8921.appspot.com",
+      messagingSenderId: "356422555230",
+      appId: "1:356422555230:web:5522aefcfc133d096286cf"
+    };
     initializeApp(firebaseConfig);
     const db = getFirestore();
 
@@ -95,20 +100,23 @@ const firebaseConfig = {
 
     document.getElementById('prevPage').onclick = () => { if (currentPage > 1) renderPage(--currentPage); };
     document.getElementById('nextPage').onclick = () => { if (currentPage < totalPages) renderPage(++currentPage); };
+
     canvas.addEventListener('click', e => {
       const rect = canvas.getBoundingClientRect();
-      data.posX = e.clientX - rect.left;
-      data.posY = e.clientY - rect.top;
-      data.page = currentPage;
-      marker.style.left = `${rect.left + data.posX - 50}px`;
-      marker.style.top = `${rect.top + data.posY - 20 + window.scrollY}px`;
-      marker.style.display = 'block';
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const centerX = parseFloat(marker.style.left) + marker.offsetWidth/2;
+      const centerY = parseFloat(marker.style.top) + marker.offsetHeight/2;
+      if (currentPage === data.page && Math.hypot(x - centerX, y - centerY) < 50) {
+        startAuth();
+      }
     });
 
     function openModal() {
       sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
       sigModal.style.display = 'flex';
     }
+    document.getElementById('clearSig').onclick = () => sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
     document.getElementById('saveSig').onclick = async () => {
       sigModal.style.display = 'none';
       await sendEmail();
@@ -164,18 +172,27 @@ const firebaseConfig = {
       ];
 
       const emailBody = lines.join('\r\n');
-      const raw = btoa(unescape(encodeURIComponent(emailBody))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+      const raw = btoa(unescape(encodeURIComponent(emailBody))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/, '');
 
       gapi.load('client', () => {
-        gapi.client.init({ apiKey: 'YOUR_API_KEY', discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest'] })
-          .then(() => {
-            gapi.client.setToken({ access_token: tokenGlobal });
-            return gapi.client.gmail.users.messages.send({ userId: 'me', resource: { raw } });
-          })
-          .then(() => alert('제출 완료!'))
-          .catch(e => { console.error(e); alert('전송 실패'); });
+        gapi.client.init({
+          apiKey: 'AIzaSyBdO8g3lJHfxoiSqgOWXp1q37zMkrkaBg4',
+          discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest']
+        })
+        .then(() => {
+          gapi.client.setToken({ access_token: tokenGlobal });
+          return gapi.client.gmail.users.messages.send({ userId: 'me', resource: { raw } });
+        })
+        .then(() => alert('제출 완료!'))
+        .catch(e => { console.error(e); alert('전송 실패'); });
       });
     }
+
+    window.startAuth = () => google.accounts.oauth2.initTokenClient({
+      client_id: '972595541590-k962h1slhqu6cm1r5fhp9nvdd8hu21vk.apps.googleusercontent.com',
+      scope: 'https://www.googleapis.com/auth/gmail.send',
+      callback: tok => { tokenGlobal = tok.access_token; openModal(); }
+    }).requestAccessToken();
 
     init();
   </script>
