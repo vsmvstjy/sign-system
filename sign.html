@@ -159,8 +159,9 @@ let drawing = false;
       const page = pdfLibDoc.getPage(data.page - 1);
       const dims = img.scale(0.2);
       const x = data.posX - dims.width/2;
-      const adjustX = -5;  // x축 왼쪽으로 5px 이동 (원하면 숫자 조절)
-const adjustY = data.posY * 0.15; // 5% 비례 조정
+const adjustX = -5;  // x축 왼쪽으로 5px 이동 (원하면 숫자 조절)
+const adjustY = data.posY * 0.15; // y축은 15% 보정
+
 const x = Math.round(data.posX - dims.width/2 + adjustX);
 const y = Math.round(page.getHeight() - data.posY - dims.height + adjustY);
 
