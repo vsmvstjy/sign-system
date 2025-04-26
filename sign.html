@@ -16,8 +16,34 @@
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
     .modal-content { background: #fff; padding: 20px; border-radius: 8px; text-align: center; }
     #sigCanvas { border: 1px solid #ccc; touch-action: none; }
-    button { margin: 10px; padding: 20px 40px; font-size: 36px; border-radius: 10px; }
+    button { margin: 10px; padding: 10px 20px; font-size: 18px; border-radius: 6px; }
+    #clearSig, #saveSig { padding: 20px 40px; font-size: 30px; }
   </style>
+</head>
+<body>
+  <div style="text-align:center; margin-bottom:10px;">
+    <button id="prevPage">이전 페이지</button>
+    <span id="pageInfo">0 / 0</span>
+    <button id="nextPage">다음 페이지</button>
+  </div>
+  <div id="pdfContainer">
+    <canvas id="pdfCanvas"></canvas>
+    <div id="marker">서명</div>
+  </div>
+  <div id="sigModal" class="modal">
+    <div class="modal-content">
+      <h3 style="font-size:40px;">서명해 주세요</h3>
+      <canvas id="sigCanvas" width="800" height="300"></canvas><br>
+      <button id="clearSig">지우기</button>
+      <button id="saveSig">완료</button>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';</script>
+  <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://apis.google.com/js/api.js"></script>
 </head>
 <body>
   <div style="text-align:center; margin-bottom:10px;">
