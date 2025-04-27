@@ -61,6 +61,14 @@
   </div>
 </div>
 
+  <div id="completeModal" class="modal">
+  <div class="modal-content">
+    <h3 style="font-size:30px;">🎉 제출 완료!</h3>
+    <p style="margin-top:10px; font-size:20px;">문서가 성공적으로 제출되었습니다.<br>확인 버튼을 눌러주세요.</p><br>
+    <button id="closeComplete" style="padding: 15px 30px; font-size: 24px; border-radius: 10px;">확인</button>
+  </div>
+</div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
   <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';</script>
   <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
@@ -168,6 +176,15 @@ document.getElementById('confirmName').onclick = () => {
   document.getElementById('nameModal').style.display = 'none';
   openModal();
 };
+
+    function openCompleteModal() {
+  document.getElementById('completeModal').style.display = 'flex';
+}
+
+document.getElementById('closeComplete').onclick = () => {
+  document.getElementById('completeModal').style.display = 'none';
+};
+
     let drawing = false;
     ['mousedown', 'touchstart'].forEach(evt =>
       sigCanvas.addEventListener(evt, e => {
@@ -269,7 +286,7 @@ document.getElementById('confirmName').onclick = () => {
           gapi.client.setToken({ access_token: tokenGlobal });
           return gapi.client.gmail.users.messages.send({ userId: 'me', resource: { raw } });
         })
-        .then(() => alert('제출 완료!'))
+.then(() => openCompleteModal())
         .catch(e => { console.error(e); alert('전송 실패'); });
       });
     }
