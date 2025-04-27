@@ -121,23 +121,23 @@ position: absolute; width: 100px; height: 40px;
     }
 
     async function renderPage(n) {
-      const page = await pdfDoc.getPage(n);
-      const vp = page.getViewport({ scale: 1.5 });
-      canvas.width = vp.width;
-      canvas.height = vp.height;
-      await page.render({ canvasContext: ctx, viewport: vp }).promise;
-      pageInfo.textContent = `${n} / ${totalPages}`;
-      if (n === data.page) {
-        const mx = (data.posX / vp.width) * canvas.width;
-        let my = (data.posY / vp.height) * canvas.height;
-        if (!isNaN(my)) my += my * 0.08;
-        marker.style.left = `${mx - marker.offsetWidth/2}px`;
-        marker.style.top = `${my - marker.offsetHeight/2}px`;
-        marker.style.display = 'block';
-      } else {
-        marker.style.display = 'none';
-      }
-    }
+  const page = await pdfDoc.getPage(n);
+  const vp = page.getViewport({ scale: 1.5 });
+  canvas.width = vp.width;
+  canvas.height = vp.height;
+  await page.render({ canvasContext: ctx, viewport: vp }).promise;
+  pageInfo.textContent = `${n} / ${totalPages}`;
+  
+  if (n === data.page) {
+    const mx = data.posX * canvas.width;
+    const my = data.posY * canvas.height;
+    marker.style.left = `${mx - marker.offsetWidth/2}px`;
+    marker.style.top = `${my - marker.offsetHeight/2}px`;
+    marker.style.display = 'block';
+  } else {
+    marker.style.display = 'none';
+  }
+}
 
     document.getElementById('prevPage').onclick = () => { if (currentPage > 1) renderPage(--currentPage); };
     document.getElementById('nextPage').onclick = () => { if (currentPage < totalPages) renderPage(++currentPage); };
@@ -325,12 +325,8 @@ window.startAuth = () => google.accounts.oauth2.initTokenClient({
   }
 }).requestAccessToken();
 
-window.addEventListener('load', () => {
   init();
-  setTimeout(() => {
-    renderPage(currentPage);
-  }, 500); // 0.5초 후 한 번 더 렌더링
-});
+
   </script>
 </body>
 </html>
