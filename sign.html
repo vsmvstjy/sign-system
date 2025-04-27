@@ -325,8 +325,10 @@ window.startAuth = () => google.accounts.oauth2.initTokenClient({
   }
 }).requestAccessToken();
 
-window.addEventListener('load', () => {
-  init();
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    init();
+  }, 100);  // 100~200ms 정도 지연
 });
   </script>
 </body>
