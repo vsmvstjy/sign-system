@@ -53,6 +53,13 @@
       <button id="saveSig" style="padding: 20px 40px; font-size: 30px; border-radius: 10px;">완료</button>
     </div>
   </div>
+<div id="nameModal" class="modal">
+  <div class="modal-content">
+    <h3 style="font-size:30px;">이름을 입력하세요</h3>
+    <input id="nameInput" type="text" placeholder="이름" style="font-size:24px; padding:10px; margin-top:20px; width:80%; border:1px solid #ccc; border-radius:8px;"><br><br>
+    <button id="confirmName" style="padding: 15px 30px; font-size: 24px; border-radius: 10px;">확인</button>
+  </div>
+</div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
   <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';</script>
@@ -76,6 +83,7 @@
     const db = getFirestore();
 
     let data, pdfDoc, currentPage = 1, totalPages = 0;
+    let userName = '';
     const canvas = document.getElementById('pdfCanvas');
     const ctx = canvas.getContext('2d');
     const marker = document.getElementById('marker');
@@ -140,13 +148,26 @@ canvas.addEventListener('click', e => {
       sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
       sigModal.style.display = 'flex';
     }
-
     document.getElementById('clearSig').onclick = () => sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
     document.getElementById('saveSig').onclick = async () => {
       sigModal.style.display = 'none';
       await sendEmail();
     };
+function openNameModal() {
+  document.getElementById('nameInput').value = '';
+  document.getElementById('nameModal').style.display = 'flex';
+}
 
+document.getElementById('confirmName').onclick = () => {
+  const name = document.getElementById('nameInput').value.trim();
+  if (!name) {
+    alert('이름을 입력해 주세요!');
+    return;
+  }
+  userName = name;
+  document.getElementById('nameModal').style.display = 'none';
+  openModal();
+};
     let drawing = false;
     ['mousedown', 'touchstart'].forEach(evt =>
       sigCanvas.addEventListener(evt, e => {
@@ -172,7 +193,7 @@ canvas.addEventListener('click', e => {
     );
 
     async function sendEmail() {
-      const name = prompt('이름을 입력하세요');
+      const name = userName;
       const pngData = sigCanvas.toDataURL();
       const pngBase64 = pngData.split(',')[1];
       const rawPdf = Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0));
@@ -253,11 +274,15 @@ canvas.addEventListener('click', e => {
       });
     }
 
-    window.startAuth = () => google.accounts.oauth2.initTokenClient({
-      client_id: '972595541590-k962h1slhqu6cm1r5fhp9nvdd8hu21vk.apps.googleusercontent.com',
-      scope: 'https://www.googleapis.com/auth/gmail.send',
-      callback: tok => { tokenGlobal = tok.access_token; openModal(); }
-    }).requestAccessToken();
+window.startAuth = () => google.accounts.oauth2.initTokenClient({
+  client_id: '972595541590-k962h1slhqu6cm1r5fhp9nvdd8hu21vk.apps.googleusercontent.com',
+  scope: 'https://www.googleapis.com/auth/gmail.send',
+  callback: tok => { 
+    tokenGlobal = tok.access_token;
+    openNameModal(); // 이름 모달 먼저 열기
+  }
+}).requestAccessToken();
+
 
     init();
   </script>
