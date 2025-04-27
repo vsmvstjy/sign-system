@@ -325,8 +325,9 @@ window.startAuth = () => google.accounts.oauth2.initTokenClient({
   }
 }).requestAccessToken();
 
-
-    init();
+window.addEventListener('load', () => {
+  init();
+});
   </script>
 </body>
 </html>
