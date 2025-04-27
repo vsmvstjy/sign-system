@@ -118,16 +118,20 @@
     document.getElementById('prevPage').onclick = () => { if (currentPage > 1) renderPage(--currentPage); };
     document.getElementById('nextPage').onclick = () => { if (currentPage < totalPages) renderPage(++currentPage); };
 
-    canvas.addEventListener('click', e => {
-      const rect = canvas.getBoundingClientRect();
-      const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-      const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-      const centerX = parseFloat(marker.style.left) + marker.offsetWidth/2;
-      const centerY = parseFloat(marker.style.top) + marker.offsetHeight/2;
-      if (currentPage === data.page && Math.hypot(x - centerX, y - centerY) < 50) {
-        startAuth();
-      }
-    });
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+  
+  const markerLeft = parseFloat(marker.style.left);
+  const markerTop = parseFloat(marker.style.top);
+  const centerX = markerLeft + marker.offsetWidth / 2;
+  const centerY = markerTop + marker.offsetHeight / 2;
+  
+  if (currentPage === data.page && Math.hypot(x - centerX, y - centerY) < 50) {
+    startAuth();
+  }
+});
 
     function openModal() {
       sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
