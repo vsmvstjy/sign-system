@@ -9,7 +9,8 @@
     canvas { display: block; width: 100%; height: auto; background: white; }
     #marker {
       position: absolute; width: 100px; height: 40px;
-      background: #fff8dc; border: 2px dashed #ff5c5c;
+background: rgba(255, 248, 220, 0.5);
+ border: 2px dashed #ff5c5c;
       border-radius: 6px; display: none;
       text-align: center; line-height: 40px; font-weight: bold; color: #ff5c5c;
       pointer-events: none;
@@ -17,7 +18,21 @@
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
     .modal-content { background: #fff; padding: 20px; border-radius: 8px; text-align: center; }
     #sigCanvas { border: 1px solid #ccc; touch-action: none; }
-    button { margin: 10px; padding: 10px; }
+  button {
+    margin: 10px;
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 6px;
+    border: none;
+    background: #1890ff;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  button:hover {
+    background: #40a9ff;
+  }
   </style>
 </head>
 <body>
@@ -86,13 +101,13 @@
       canvas.width = vp.width;
       canvas.height = vp.height;
       await page.render({ canvasContext: ctx, viewport: vp }).promise;
-      pageInfo.textContent = `${n} / ${totalPages}`;
+      pageInfo.textContent = ${n} / ${totalPages};
       if (n === data.page) {
         const mx = (data.posX / vp.width) * canvas.width;
         let my = (data.posY / vp.height) * canvas.height;
         if (!isNaN(my)) my += my * 0.08;
-        marker.style.left = `${mx - marker.offsetWidth/2}px`;
-        marker.style.top = `${my - marker.offsetHeight/2}px`;
+        marker.style.left = ${mx - marker.offsetWidth/2}px;
+        marker.style.top = ${my - marker.offsetHeight/2}px;
         marker.style.display = 'block';
       } else {
         marker.style.display = 'none';
@@ -104,8 +119,8 @@
 
     canvas.addEventListener('click', e => {
       const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+const y = (e.clientY - rect.top) * (canvas.height / rect.height);
       const centerX = parseFloat(marker.style.left) + marker.offsetWidth/2;
       const centerY = parseFloat(marker.style.top) + marker.offsetHeight/2;
       if (currentPage === data.page && Math.hypot(x - centerX, y - centerY) < 50) {
@@ -182,35 +197,35 @@ const signedBase64 = uint8ToBase64(signedBytes);
 
 
       const boundary = 'BOUNDARY';
-      const bodyText = `본인은 첨부된 "${data.docTitle}" 문서를 확인하였으며, 아래와 같이 서명합니다.\n\n- 제출자: ${name}\n- 제출 일시: ${new Date().toLocaleString()}`;
+      const bodyText = 본인은 첨부된 "${data.docTitle}" 문서를 확인하였으며, 아래와 같이 서명합니다.\n\n- 제출자: ${name}\n- 제출 일시: ${new Date().toLocaleString()};
       const parts = [
-        `--${boundary}`,
+        --${boundary},
         'Content-Type: text/plain; charset=UTF-8', '', bodyText,
-        `--${boundary}`,
+        --${boundary},
         'Content-Type: application/pdf; name="document.pdf"',
         'Content-Disposition: attachment; filename="document.pdf"',
         'Content-Transfer-Encoding: base64', '', data.pdfBase64,
-        `--${boundary}`,
+        --${boundary},
         'Content-Type: image/png; name="signature.png"',
         'Content-Disposition: attachment; filename="signature.png"',
         'Content-Transfer-Encoding: base64', '', pngBase64,
-        `--${boundary}`,
+        --${boundary},
         'Content-Type: application/pdf; name="signed.pdf"',
         'Content-Disposition: attachment; filename="signed.pdf"',
         'Content-Transfer-Encoding: base64', '', signedBase64,
-        `--${boundary}--`
+        --${boundary}--
       ];
 
-      const subjectText = `[전자서명 제출] ${data.docTitle} - ${name}`;
+      const subjectText = [전자서명 제출] ${data.docTitle} - ${name};
       const utf8Bytes = new TextEncoder().encode(subjectText);
       const subjectEncoded = btoa(String.fromCharCode(...utf8Bytes));
-      const subject = `=?UTF-8?B?${subjectEncoded}?=`;
+      const subject = =?UTF-8?B?${subjectEncoded}?=;
 
       const lines = [
         'MIME-Version: 1.0',
-        `To: ${data.receiver}`,
-        `Subject: ${subject}`,
-        `Content-Type: multipart/mixed; boundary=${boundary}`,
+        To: ${data.receiver},
+        Subject: ${subject},
+        Content-Type: multipart/mixed; boundary=${boundary},
         '',
         ...parts
       ];
