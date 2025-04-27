@@ -143,12 +143,8 @@
 
     canvas.addEventListener('click', e => {
       const rect = canvas.getBoundingClientRect();
-const scaleX = pdfDoc.getPage(posPage).then(page => page.getViewport({scale: 1.0}).width / canvas.width);
-const scaleY = pdfDoc.getPage(posPage).then(page => page.getViewport({scale: 1.0}).height / canvas.height);
-
-posX = (e.clientX - rect.left) * scaleX;
-posY = (e.clientY - rect.top) * scaleY;
-
+      posX = e.clientX - rect.left;
+      posY = e.clientY - rect.top;
       posPage = currentPage;
       marker.style.left = `${e.clientX - 50}px`;
       marker.style.top = `${e.clientY - 20 + window.scrollY}px`;
