@@ -120,15 +120,18 @@
 
 canvas.addEventListener('click', e => {
   const rect = canvas.getBoundingClientRect();
-  const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-  const y = (e.clientY - rect.top) * (canvas.height / rect.height);
   
-  const markerLeft = parseFloat(marker.style.left);
-  const markerTop = parseFloat(marker.style.top);
-  const centerX = markerLeft + marker.offsetWidth / 2;
-  const centerY = markerTop + marker.offsetHeight / 2;
+  // 클릭한 위치를 캔버스 내부 비율로 변환
+  const clickX = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const clickY = (e.clientY - rect.top) * (canvas.height / rect.height);
   
-  if (currentPage === data.page && Math.hypot(x - centerX, y - centerY) < 50) {
+  // marker의 화면 좌표를 캔버스 내부 좌표로 변환
+  const markerLeft = parseFloat(marker.style.left) / rect.width * canvas.width;
+  const markerTop = parseFloat(marker.style.top) / rect.height * canvas.height;
+  const centerX = markerLeft + (marker.offsetWidth / rect.width * canvas.width) / 2;
+  const centerY = markerTop + (marker.offsetHeight / rect.height * canvas.height) / 2;
+
+  if (currentPage === data.page && Math.hypot(clickX - centerX, clickY - centerY) < 50) {
     startAuth();
   }
 });
