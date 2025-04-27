@@ -123,7 +123,7 @@ const x = (e.clientX - rect.left) * (canvas.width / rect.width);
 const y = (e.clientY - rect.top) * (canvas.height / rect.height);
       const centerX = parseFloat(marker.style.left) + marker.offsetWidth/2;
       const centerY = parseFloat(marker.style.top) + marker.offsetHeight/2;
-      if (currentPage === data.page && Math.hypot(x - centerX, y - centerY) < 50) {
+      if (currentPage === data.page && Math.hypot(x - centerX, y - centerY) < 70) {
         startAuth();
       }
     });
