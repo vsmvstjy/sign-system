@@ -96,8 +96,7 @@ background: rgba(255, 248, 220, 0.5);
       pageInfo.textContent = `${n} / ${totalPages}`;  
       if (n === data.page) {  
         const mx = (data.posX / vp.width) * canvas.width;  
-        let my = (data.posY / vp.height) * canvas.height;  
-        if (!isNaN(my)) my += my * 0.08;  
+        let my = (data.posY / vp.height) * canvas.height;
         marker.style.left = `${mx - marker.offsetWidth/2}px`;  
         marker.style.top = `${my - marker.offsetHeight/2}px`;  
         marker.style.display = 'block';  
