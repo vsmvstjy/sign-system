@@ -69,6 +69,14 @@
   </div>
 </div>
 
+  <div id="loadingModal" class="modal">
+  <div class="modal-content">
+    <h3 style="font-size:30px;">⏳ 제출 중입니다...</h3>
+    <p style="margin-top:10px; font-size:20px;">잠시만 기다려 주세요.</p>
+  </div>
+</div>
+
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
   <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';</script>
   <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
@@ -185,6 +193,14 @@ document.getElementById('closeComplete').onclick = () => {
   document.getElementById('completeModal').style.display = 'none';
 };
 
+    function openLoadingModal() {
+  document.getElementById('loadingModal').style.display = 'flex';
+}
+
+function closeLoadingModal() {
+  document.getElementById('loadingModal').style.display = 'none';
+}
+
     let drawing = false;
     ['mousedown', 'touchstart'].forEach(evt =>
       sigCanvas.addEventListener(evt, e => {
@@ -210,6 +226,8 @@ document.getElementById('closeComplete').onclick = () => {
     );
 
     async function sendEmail() {
+      openLoadingModal(); // <<< 이거 추가
+
       const name = userName;
       const pngData = sigCanvas.toDataURL();
       const pngBase64 = pngData.split(',')[1];
@@ -286,10 +304,17 @@ document.getElementById('closeComplete').onclick = () => {
           gapi.client.setToken({ access_token: tokenGlobal });
           return gapi.client.gmail.users.messages.send({ userId: 'me', resource: { raw } });
         })
-.then(() => openCompleteModal())
-        .catch(e => { console.error(e); alert('전송 실패'); });
-      });
-    }
+              .then(() => {
+      closeLoadingModal(); // 여기에서 닫고
+      openCompleteModal(); // 완료 모달 열기
+    })
+    .catch(e => {
+      console.error(e);
+      closeLoadingModal(); // 실패해도 무조건 닫기
+      alert('전송 실패');
+    });
+  });
+}
 
 window.startAuth = () => google.accounts.oauth2.initTokenClient({
   client_id: '972595541590-k962h1slhqu6cm1r5fhp9nvdd8hu21vk.apps.googleusercontent.com',
