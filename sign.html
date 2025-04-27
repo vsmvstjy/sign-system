@@ -266,7 +266,7 @@ async function sendEmail() {
     ...parts
   ].join('\r\n');
 
-  const raw = btoa(unescape(encodeURIComponent(emailBody))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/, '');
+const raw = btoa(emailBody).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/, '');
 
   gapi.load('client', () => {
     gapi.client.init({
