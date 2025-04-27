@@ -1,0 +1,67 @@
+
+body {
+  font-family: sans-serif;
+  margin: 0;
+  padding: 20px;
+  background: #f9f9f9;
+}
+#pdfArea {
+  text-align: center;
+}
+#nav {
+  margin-bottom: 10px;
+}
+#nav button {
+  margin: 10px;
+  padding: 10px 20px;
+  font-size: 16px;
+  border-radius: 6px;
+  border: none;
+  background: #1890ff;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+#nav button:hover {
+  background: #40a9ff;
+}
+canvas {
+  border: 1px solid #ccc;
+  display: block;
+  margin: 0 auto 20px auto;
+  cursor: crosshair;
+}
+#marker {
+  position: absolute;
+  width: 100px;
+  height: 40px;
+  background: rgba(255, 248, 220, 0.5);
+  border: 2px dashed #ff5c5c;
+  border-radius: 6px;
+  display: none;
+  pointer-events: none;
+  text-align: center;
+  line-height: 40px;
+  font-weight: bold;
+  color: #ff5c5c;
+  font-size: 16px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.5);
+  align-items: center;
+  justify-content: center;
+}
+.modal-content {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+}
