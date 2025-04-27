@@ -99,6 +99,9 @@
     const db = getFirestore();
 
     let data, pdfDoc, currentPage = 1, totalPages = 0;
+    let pdfPageWidth = 0;
+let pdfPageHeight = 0;
+
     let userName = '';
     const canvas = document.getElementById('pdfCanvas');
     const ctx = canvas.getContext('2d');
@@ -126,17 +129,20 @@
       canvas.width = vp.width;
       canvas.height = vp.height;
       await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      const originalVp = page.getViewport({ scale: 1.0 });
+pdfPageWidth = originalVp.width;
+pdfPageHeight = originalVp.height;
+
       pageInfo.textContent = `${n} / ${totalPages}`;
-      if (n === data.page) {
-        const mx = (data.posX / vp.width) * canvas.width;
-        let my = (data.posY / vp.height) * canvas.height;
-        if (!isNaN(my)) my += my * 0.08;
-        marker.style.left = `${mx - marker.offsetWidth/2}px`;
-        marker.style.top = `${my - marker.offsetHeight/2}px`;
-        marker.style.display = 'block';
-      } else {
-        marker.style.display = 'none';
-      }
+ if (n === data.page) {
+  const mx = (data.posX / pdfPageWidth) * canvas.width;
+  const my = (data.posY / pdfPageHeight) * canvas.height;
+  marker.style.left = `${mx - marker.offsetWidth/2}px`;
+  marker.style.top = `${my - marker.offsetHeight/2}px`;
+  marker.style.display = 'block';
+} else {
+  marker.style.display = 'none';
+}
     }
 
     document.getElementById('prevPage').onclick = () => { if (currentPage > 1) renderPage(--currentPage); };
@@ -144,21 +150,19 @@
 
 canvas.addEventListener('click', e => {
   const rect = canvas.getBoundingClientRect();
-  
-  // 클릭한 위치를 캔버스 내부 비율로 변환
   const clickX = (e.clientX - rect.left) * (canvas.width / rect.width);
   const clickY = (e.clientY - rect.top) * (canvas.height / rect.height);
-  
-  // marker의 화면 좌표를 캔버스 내부 좌표로 변환
-  const markerLeft = parseFloat(marker.style.left) / rect.width * canvas.width;
-  const markerTop = parseFloat(marker.style.top) / rect.height * canvas.height;
-  const centerX = markerLeft + (marker.offsetWidth / rect.width * canvas.width) / 2;
-  const centerY = markerTop + (marker.offsetHeight / rect.height * canvas.height) / 2;
+
+  const markerLeft = (data.posX / pdfPageWidth) * canvas.width;
+  const markerTop = (data.posY / pdfPageHeight) * canvas.height;
+  const centerX = markerLeft;
+  const centerY = markerTop;
 
   if (currentPage === data.page && Math.hypot(clickX - centerX, clickY - centerY) < 50) {
     startAuth();
   }
 });
+
 
     function openModal() {
       sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
@@ -237,12 +241,9 @@ function closeLoadingModal() {
       const page = pdfLibDoc.getPage(data.page - 1);
       const dims = img.scale(0.2);
 
-      const baseOffsetX = 75;
-      const adjustByY = (data.posY ?? 0) * 0.02;
-      const x = (data.posX ?? 0) - dims.width/2 - baseOffsetX - adjustByY;
-      const adjustY = (data.posY ?? 0) * 0.22;
-      const extraAdjustmentY = (data.posY < 400) ? 10 : 0;
-      const y = page.getHeight() - (data.posY ?? 0) - dims.height + adjustY + extraAdjustmentY;
+const x = (data.posX ?? 0) - dims.width / 2;
+const y = page.getHeight() - (data.posY ?? 0) - dims.height;
+
 
       page.drawImage(img, { x, y, width: dims.width, height: dims.height });
 
