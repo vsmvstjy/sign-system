@@ -241,9 +241,8 @@ function closeLoadingModal() {
       const page = pdfLibDoc.getPage(data.page - 1);
       const dims = img.scale(0.2);
 
-const x = (data.posX ?? 0) - dims.width / 2;
-const y = page.getHeight() - (data.posY ?? 0) - dims.height;
-
+const x = (data.posX / canvas.width) * page.getWidth() - dims.width / 2;
+const y = page.getHeight() - (data.posY / canvas.height) * page.getHeight() - dims.height;
 
       page.drawImage(img, { x, y, width: dims.width, height: dims.height });
 
