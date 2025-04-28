@@ -142,20 +142,15 @@
     document.getElementById('nextPage').onclick = () => { if (currentPage < totalPages) renderPage(++currentPage); };
 
     canvas.addEventListener('click', e => {
-  const rect = canvas.getBoundingClientRect();
-  const clickX = (e.clientX - rect.left) * (canvas.width / rect.width);
-  const clickY = (e.clientY - rect.top) * (canvas.height / rect.height);
-  
-  posX = clickX / canvas.width;  // 퍼센트로 저장
-  posY = clickY / canvas.height; // 퍼센트로 저장
-  posPage = currentPage;
-
-  marker.style.left = `${e.clientX - 50}px`;
-  marker.style.top = `${e.clientY - 20 + window.scrollY}px`;
-  marker.style.display = 'block';
-
-  renderPage(currentPage);
-});
+      const rect = canvas.getBoundingClientRect();
+      posX = e.clientX - rect.left;
+      posY = e.clientY - rect.top;
+      posPage = currentPage;
+      marker.style.left = `${e.clientX - 50}px`;
+      marker.style.top = `${e.clientY - 20 + window.scrollY}px`;
+      marker.style.display = 'block';
+      renderPage(currentPage);
+    });
 
     document.getElementById('generate').onclick = async () => {
       const title = document.getElementById('docTitle').value;
