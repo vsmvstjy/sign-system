@@ -29,7 +29,7 @@
     button { margin: 10px; padding: 10px 20px; font-size: 16px; border-radius: 6px; border: none; background: #1890ff; color: white; font-weight: bold; cursor: pointer; }
     button:hover { background: #40a9ff; }
     .page-nav { text-align: center; margin-bottom: 6px; }
-    #loadingText { text-align: center; color: #888; font-size: 14px; margin: 8px 0; display: none; }
+    #loadingText { text-align: center; color: #FF0000; font-size: 14px; margin: 8px 0; display: none; }
     footer { text-align: center; padding: 16px; font-size: 12px; color: #4A4F5A; border-top: 1px solid #e8e8e8; }
   </style>
 </head>
@@ -216,7 +216,7 @@
           background:${filled ? cfg.color+'55' : cfg.color+'22'};
           border:2px ${filled ? 'solid' : 'dashed'} ${cfg.color};
           color:${cfg.color};
-          font-size:${field.type==='memo' ? '11' : (field.type==='date'&&filled?'15':'15')}px;
+          font-size:${field.type==='memo' ? '15' : (field.type==='date'&&filled?'15':'15')}px;
           ${field.type==='memo' ? 'white-space:pre-wrap; text-align:left; align-items:flex-start; padding:4px;' : ''}`;
         div.textContent = label;
         div.addEventListener('click', () => handleFieldClick(idx));
