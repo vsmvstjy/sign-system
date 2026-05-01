@@ -51,8 +51,13 @@
     const pageInfo = document.getElementById('pageInfo');
 
     document.getElementById('pdfFile').addEventListener('change', e => {
-      const file = e.target.files[0];
-      const reader = new FileReader();
+    const file = e.target.files[0];
+    if (file.size > 700 * 1024) {
+    alert(`파일 용량이 너무 큽니다 (${(file.size / 1024).toFixed(0)}KB).\n700KB 이하의 PDF만 사용 가능합니다.`);
+    e.target.value = '';
+    return;
+  }
+  const reader = new FileReader();
       reader.onload = async () => {
         pdfBase64 = reader.result.split(',')[1];
         const raw = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
