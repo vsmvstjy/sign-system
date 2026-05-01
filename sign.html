@@ -153,12 +153,7 @@
   const vp = page.getViewport({ scale: RENDER_SCALE });
   canvas.width = vp.width;
   canvas.height = vp.height;
-  ctx.fillStyle = '#eee';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#999';
-  ctx.font = `${canvas.width * 0.04}px sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.fillText('로딩 중...', canvas.width / 2, canvas.height / 2);
+      
   await page.render({ canvasContext: ctx, viewport: vp }).promise;
   pageInfo.textContent = `${n} / ${totalPages}`;
   if (n === data.page) {
