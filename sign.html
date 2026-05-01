@@ -7,50 +7,39 @@
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; font-family: sans-serif; background: #f9f9f9; }
-    header {
-      background: #002D72;
-      padding: 14px 24px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
+    header { background: #002D72; padding: 14px 24px; display: flex; align-items: center; gap: 16px; }
     header img { height: 44px; }
     header .title-wrap { color: white; }
     header .title-wrap .sub { font-size: 11px; opacity: 0.75; letter-spacing: 0.5px; }
     header .title-wrap .main { font-size: 17px; font-weight: bold; }
-    .notice {
-      max-width: 800px; margin: 16px auto 0;
-      background: #e8f0fe; border-left: 4px solid #002D72;
-      padding: 10px 16px; border-radius: 4px;
-      font-size: 13px; color: #333;
-    }
+    .notice { max-width: 800px; margin: 16px auto 0; background: #e8f0fe; border-left: 4px solid #002D72; padding: 10px 16px; border-radius: 4px; font-size: 13px; color: #333; }
+    #progressArea { max-width: 800px; margin: 12px auto; background: white; border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 4px rgba(0,0,0,0.1); flex-wrap: wrap; gap: 8px; }
+    #progressText { font-size: 14px; color: #555; }
+    #submitBtn { padding: 10px 24px; background: #002D72; color: white; border: none; border-radius: 6px; font-size: 15px; font-weight: bold; cursor: pointer; }
+    #submitBtn:hover { background: #003fa3; }
+    #submitBtn:disabled { background: #ccc; cursor: not-allowed; }
     main { padding: 16px 20px 40px; }
     #pdfContainer { position: relative; width: 100%; max-width: 800px; margin: 0 auto; }
     canvas { display: block; width: 100%; height: auto; background: white; }
-    #marker {
-      position: absolute; width: 100px; height: 40px;
-      background: rgba(255, 248, 220, 0.5);
-      border: 2px dashed #ff5c5c; border-radius: 6px; display: none;
-      text-align: center; line-height: 40px; font-weight: bold; color: #ff5c5c;
-      pointer-events: none;
-    }
-    .modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
-    .modal-content { background: #fff; padding: 20px; border-radius: 8px; text-align: center; }
-    #sigCanvas { border: 1px solid #ccc; touch-action: none; }
-    button {
-      margin: 10px; padding: 10px 20px; font-size: 16px;
-      border-radius: 6px; border: none; background: #1890ff;
-      color: white; font-weight: bold; cursor: pointer; transition: background 0.3s;
-    }
+    .field-marker { position: absolute; border-radius: 4px; text-align: center; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; transition: background 0.2s; }
+    .field-marker:hover { filter: brightness(1.1); }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 100; }
+    .modal-content { background: #fff; padding: 20px; border-radius: 8px; text-align: center; max-width: 95vw; }
+    #sigCanvas { border: 1px solid #ccc; touch-action: none; max-width: 100%; }
+    button { margin: 10px; padding: 10px 20px; font-size: 16px; border-radius: 6px; border: none; background: #1890ff; color: white; font-weight: bold; cursor: pointer; }
     button:hover { background: #40a9ff; }
-    .page-nav { text-align: center; margin-bottom: 10px; }
-    footer {
-      text-align: center; padding: 16px;
-      font-size: 12px; color: #4A4F5A; border-top: 1px solid #e8e8e8;
-    }
+    .page-nav { text-align: center; margin-bottom: 6px; }
+    #loadingText { text-align: center; color: #888; font-size: 14px; margin: 8px 0; display: none; }
+    footer { text-align: center; padding: 16px; font-size: 12px; color: #999; border-top: 1px solid #e8e8e8; }
   </style>
 </head>
 <body>
+  <script>
+    if (/KAKAOTALK/i.test(navigator.userAgent)) {
+      document.body.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;padding:30px;text-align:center;font-family:sans-serif;"><img src="logo.png" style="height:50px;margin-bottom:24px;"><h2 style="color:#002D72;margin-bottom:16px;">외부 브라우저에서 열어주세요</h2><p style="color:#555;line-height:1.6;">카카오톡 내에서는 Google 로그인이 제한되어<br>서명이 불가합니다.<br><br>우측 하단 <strong>···</strong> → <strong>다른 브라우저로 열기</strong>를<br>눌러주세요.</p></div>`;
+    }
+  </script>
+
   <header>
     <img src="logo.png" alt="경기대학교 로고">
     <div class="title-wrap">
@@ -58,44 +47,46 @@
       <div class="main">연구지원팀 전자서명 시스템</div>
     </div>
   </header>
-  <div class="notice">
-    <b>본 문서는 연구지원팀 전자서명 시스템을 통해 서명자의 학교 이메일 계정을 사용하여 제출됩니다.
-    </b>
+  <div class="notice">본 문서는 연구지원팀 전자서명 시스템을 통해 서명자의 학교 이메일 계정을 사용하여 제출됩니다.</div>
+
+  <div id="progressArea">
+    <span id="progressText">문서를 불러오는 중...</span>
+    <button id="submitBtn" disabled>✉ 제출하기</button>
   </div>
+
   <main>
+    <p id="loadingText">문서를 불러오는 중입니다...</p>
     <div class="page-nav">
       <button id="prevPage">이전 페이지</button>
       <span id="pageInfo">0 / 0</span>
       <button id="nextPage">다음 페이지</button>
     </div>
-    <p id="loadingText" style="text-align:center; color:#ff0000; font-size:14px; margin:8px 0;">문서를 불러오는 중입니다...</p>
     <div id="pdfContainer">
       <canvas id="pdfCanvas"></canvas>
-      <div id="marker">서명</div>
     </div>
   </main>
   <footer>개발 · 운영: 경기대학교 연구지원팀 이주영</footer>
 
   <div id="sigModal" class="modal">
     <div class="modal-content">
-      <h3 style="font-size:40px;">서명해 주세요</h3>
+      <h3 style="font-size:30px;">서명해 주세요</h3>
       <canvas id="sigCanvas" width="800" height="300"></canvas><br>
-      <button id="clearSig" style="padding:20px 40px;font-size:30px;border-radius:10px;">지우기</button>
-      <button id="saveSig" style="padding:20px 40px;font-size:30px;border-radius:10px;">완료</button>
+      <button id="clearSig" style="padding:15px 30px;font-size:24px;">지우기</button>
+      <button id="saveSig" style="padding:15px 30px;font-size:24px;">완료</button>
     </div>
   </div>
   <div id="nameModal" class="modal">
     <div class="modal-content">
       <h3 style="font-size:30px;">이름을 입력하세요</h3>
       <input id="nameInput" type="text" placeholder="이름" style="font-size:24px;padding:10px;margin-top:20px;width:80%;border:1px solid #ccc;border-radius:8px;"><br><br>
-      <button id="confirmName" style="padding:15px 30px;font-size:24px;border-radius:10px;">확인</button>
+      <button id="confirmName" style="padding:15px 30px;font-size:24px;">확인</button>
     </div>
   </div>
   <div id="completeModal" class="modal">
     <div class="modal-content">
       <h3 style="font-size:30px;">🎉 제출 완료!</h3>
       <p style="margin-top:10px;font-size:20px;">문서가 성공적으로 제출되었습니다.<br>확인 버튼을 눌러주세요.</p><br>
-      <button id="closeComplete" style="padding:15px 30px;font-size:24px;border-radius:10px;">확인</button>
+      <button id="closeComplete" style="padding:15px 30px;font-size:24px;">확인</button>
     </div>
   </div>
   <div id="loadingModal" class="modal">
@@ -126,157 +117,234 @@
     initializeApp(firebaseConfig);
     const db = getFirestore();
 
-    const RENDER_SCALE = 1.5;
+    const RENDER_SCALE = window.innerWidth < 768 ? 1.2 : 1.5;
     let data, pdfDoc, currentPage = 1, totalPages = 0;
     let userName = '';
+    let fieldValues = {};
+    let currentSigningField = -1;
+    let tokenGlobal;
+
     const canvas = document.getElementById('pdfCanvas');
     const ctx = canvas.getContext('2d');
-    const marker = document.getElementById('marker');
+    const pdfContainer = document.getElementById('pdfContainer');
     const pageInfo = document.getElementById('pageInfo');
     const sigModal = document.getElementById('sigModal');
     const sigCanvas = document.getElementById('sigCanvas');
     const sigCtx = sigCanvas.getContext('2d');
-    let tokenGlobal;
+
+    const FIELD_CONFIG = {
+      check:     { color: '#1890ff', label: '☑ 체크',  w: 50, h: 30 },
+      signature: { color: '#ff5c5c', label: '✍ 서명',  w: 100, h: 40 },
+      date:      { color: '#52c41a', label: '📅 날짜',  w: 90, h: 30 },
+    };
 
     async function init() {
       const id = new URLSearchParams(location.search).get('id');
+      document.getElementById('loadingText').style.display = 'block';
       const snap = await getDoc(doc(db, 'signRequests', id));
       if (!snap.exists()) return alert('잘못된 링크입니다.');
       data = snap.data();
+      if (!data.fields) {
+        data.fields = [{ type: 'signature', page: data.page, posX: data.posX, posY: data.posY }];
+      }
       const rawPdf = Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0));
       pdfDoc = await pdfjsLib.getDocument({ data: rawPdf }).promise;
       totalPages = pdfDoc.numPages;
-      renderPage(currentPage);
+      document.getElementById('loadingText').style.display = 'none';
+      updateProgress();
+      await renderPage(currentPage);
     }
 
     async function renderPage(n) {
+      currentPage = n;
       document.getElementById('loadingText').style.display = 'block';
-  const page = await pdfDoc.getPage(n);
-  const vp = page.getViewport({ scale: RENDER_SCALE });
-  canvas.width = vp.width;
-  canvas.height = vp.height;
-      
-  await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      const page = await pdfDoc.getPage(n);
+      const vp = page.getViewport({ scale: RENDER_SCALE });
+      canvas.width = vp.width;
+      canvas.height = vp.height;
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
       document.getElementById('loadingText').style.display = 'none';
-  pageInfo.textContent = `${n} / ${totalPages}`;
-  if (n === data.page) {
-    const rect = canvas.getBoundingClientRect();
-    const ratio = rect.width / canvas.width;
-    const cssX = data.posX * RENDER_SCALE * ratio;
-    const cssY = data.posY * RENDER_SCALE * ratio;
-    marker.style.display = 'block';
-    marker.style.left = `${cssX - marker.offsetWidth/2}px`;
-    marker.style.top = `${cssY - marker.offsetHeight/2}px`;
-  } else {
-    marker.style.display = 'none';
-  }
-}
+      pageInfo.textContent = `${n} / ${totalPages}`;
+      renderFieldMarkers();
+    }
+
+    function renderFieldMarkers() {
+      document.querySelectorAll('.field-marker').forEach(el => el.remove());
+      const rect = canvas.getBoundingClientRect();
+      const ratio = rect.width / canvas.width;
+
+      data.fields.forEach((field, idx) => {
+        if (field.page !== currentPage) return;
+        const cfg = FIELD_CONFIG[field.type];
+        const div = document.createElement('div');
+        div.className = 'field-marker';
+        const cssX = field.posX * RENDER_SCALE * ratio;
+        const cssY = field.posY * RENDER_SCALE * ratio;
+        const filled = fieldValues[idx] !== undefined;
+
+        let label = cfg.label;
+        if (filled) {
+          if (field.type === 'check') label = '✓';
+          else if (field.type === 'date') label = fieldValues[idx];
+          else label = '✓ 서명완료';
+        }
+
+        div.style.cssText = `
+          left:${cssX - cfg.w/2}px; top:${cssY - cfg.h/2}px;
+          width:${cfg.w}px; height:${cfg.h}px;
+          background:${filled ? cfg.color+'55' : cfg.color+'22'};
+          border:2px ${filled ? 'solid' : 'dashed'} ${cfg.color};
+          color:${cfg.color};
+          font-size:${field.type==='date'&&filled?'10':'12'}px;
+        `;
+        div.textContent = label;
+        div.addEventListener('click', () => handleFieldClick(idx));
+        pdfContainer.appendChild(div);
+      });
+    }
+
+    function handleFieldClick(idx) {
+      const field = data.fields[idx];
+      // If already filled, allow toggle/clear
+      if (fieldValues[idx] !== undefined) {
+        if (confirm('이 항목을 취소하시겠습니까?')) {
+          delete fieldValues[idx];
+          updateProgress();
+          renderFieldMarkers();
+        }
+        return;
+      }
+      if (field.type === 'check') {
+        fieldValues[idx] = true;
+        updateProgress();
+        renderFieldMarkers();
+      } else if (field.type === 'date') {
+        const today = new Date();
+        fieldValues[idx] = `${today.getFullYear()}. ${today.getMonth()+1}. ${today.getDate()}.`;
+        updateProgress();
+        renderFieldMarkers();
+      } else if (field.type === 'signature') {
+        currentSigningField = idx;
+        sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+        sigModal.style.display = 'flex';
+      }
+    }
+
+    function updateProgress() {
+      const total = data.fields.length;
+      const filled = Object.keys(fieldValues).length;
+      document.getElementById('progressText').textContent = `${filled}개 항목 작성됨 (전체 ${total}개 / 원하는 항목만 작성하세요)`;
+      document.getElementById('submitBtn').disabled = filled === 0;
+    }
+
+    document.getElementById('clearSig').onclick = () => sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+    document.getElementById('saveSig').onclick = () => {
+      sigModal.style.display = 'none';
+      fieldValues[currentSigningField] = sigCanvas.toDataURL();
+      updateProgress();
+      renderFieldMarkers();
+    };
+
+    let drawing = false;
+    ['mousedown', 'touchstart'].forEach(evt =>
+      sigCanvas.addEventListener(evt, e => {
+        drawing = true;
+        const pos = e.touches ? e.touches[0] : e;
+        const rect = sigCanvas.getBoundingClientRect();
+        const sx = sigCanvas.width / rect.width, sy = sigCanvas.height / rect.height;
+        sigCtx.beginPath();
+        sigCtx.moveTo((pos.clientX - rect.left) * sx, (pos.clientY - rect.top) * sy);
+      })
+    );
+    ['mousemove', 'touchmove'].forEach(evt =>
+      sigCanvas.addEventListener(evt, e => {
+        if (!drawing) return;
+        const pos = e.touches ? e.touches[0] : e;
+        const rect = sigCanvas.getBoundingClientRect();
+        const sx = sigCanvas.width / rect.width, sy = sigCanvas.height / rect.height;
+        sigCtx.lineTo((pos.clientX - rect.left) * sx, (pos.clientY - rect.top) * sy);
+        sigCtx.stroke();
+        e.preventDefault();
+      })
+    );
+    ['mouseup', 'touchend', 'mouseout'].forEach(evt =>
+      sigCanvas.addEventListener(evt, () => drawing = false)
+    );
 
     document.getElementById('prevPage').onclick = () => { if (currentPage > 1) renderPage(--currentPage); };
     document.getElementById('nextPage').onclick = () => { if (currentPage < totalPages) renderPage(++currentPage); };
 
-    canvas.addEventListener('click', e => {
-      const rect = canvas.getBoundingClientRect();
-      const clickX = (e.clientX - rect.left) * (canvas.width / rect.width);
-      const clickY = (e.clientY - rect.top) * (canvas.height / rect.height);
-      const markerLeft = parseFloat(marker.style.left) / rect.width * canvas.width;
-      const markerTop = parseFloat(marker.style.top) / rect.height * canvas.height;
-      const centerX = markerLeft + (marker.offsetWidth / rect.width * canvas.width) / 2;
-      const centerY = markerTop + (marker.offsetHeight / rect.height * canvas.height) / 2;
-      if (currentPage === data.page && Math.hypot(clickX - centerX, clickY - centerY) < 50) {
-        startAuth();
+    document.getElementById('submitBtn').onclick = () => {
+      if (Object.keys(fieldValues).length === 0) { alert('최소 한 개 항목은 작성해주세요.'); return; }
+      if (!userName) {
+        document.getElementById('nameInput').value = '';
+        document.getElementById('nameModal').style.display = 'flex';
+      } else {
+        startAuthAndSend();
       }
-    });
-
-    function openModal() {
-      sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
-      sigModal.style.display = 'flex';
-    }
-    document.getElementById('clearSig').onclick = () => sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
-    document.getElementById('saveSig').onclick = async () => {
-      sigModal.style.display = 'none';
-      await sendEmail();
     };
 
-    function openNameModal() {
-      document.getElementById('nameInput').value = '';
-      document.getElementById('nameModal').style.display = 'flex';
-    }
     document.getElementById('confirmName').onclick = () => {
       const name = document.getElementById('nameInput').value.trim();
       if (!name) { alert('이름을 입력해 주세요!'); return; }
       userName = name;
       document.getElementById('nameModal').style.display = 'none';
-      openModal();
+      startAuthAndSend();
     };
+
+    function startAuthAndSend() {
+      google.accounts.oauth2.initTokenClient({
+        client_id: '972595541590-k962h1slhqu6cm1r5fhp9nvdd8hu21vk.apps.googleusercontent.com',
+        scope: 'https://www.googleapis.com/auth/gmail.send',
+        callback: tok => { tokenGlobal = tok.access_token; sendEmail(); }
+      }).requestAccessToken();
+    }
 
     function openCompleteModal() { document.getElementById('completeModal').style.display = 'flex'; }
     document.getElementById('closeComplete').onclick = () => { document.getElementById('completeModal').style.display = 'none'; };
     function openLoadingModal() { document.getElementById('loadingModal').style.display = 'flex'; }
     function closeLoadingModal() { document.getElementById('loadingModal').style.display = 'none'; }
 
-    let drawing = false;
-['mousedown', 'touchstart'].forEach(evt =>
-  sigCanvas.addEventListener(evt, e => {
-    drawing = true;
-    const pos = e.touches ? e.touches[0] : e;
-    const rect = sigCanvas.getBoundingClientRect();
-    const scaleX = sigCanvas.width / rect.width;
-    const scaleY = sigCanvas.height / rect.height;
-    sigCtx.beginPath();
-    sigCtx.moveTo((pos.clientX - rect.left) * scaleX, (pos.clientY - rect.top) * scaleY);
-  })
-);
-['mousemove', 'touchmove'].forEach(evt =>
-  sigCanvas.addEventListener(evt, e => {
-    if (!drawing) return;
-    const pos = e.touches ? e.touches[0] : e;
-    const rect = sigCanvas.getBoundingClientRect();
-    const scaleX = sigCanvas.width / rect.width;
-    const scaleY = sigCanvas.height / rect.height;
-    sigCtx.lineTo((pos.clientX - rect.left) * scaleX, (pos.clientY - rect.top) * scaleY);
-    sigCtx.stroke();
-    e.preventDefault();
-  })
-);
-['mouseup', 'touchend', 'mouseout'].forEach(evt =>
-  sigCanvas.addEventListener(evt, () => drawing = false)
-);
-
     async function sendEmail() {
       openLoadingModal();
-      const name = userName;
-      const pngData = sigCanvas.toDataURL();
-      const pngBase64 = pngData.split(',')[1];
       const rawPdf = Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0));
       const pdfLibDoc = await PDFLib.PDFDocument.load(rawPdf);
-      const img = await pdfLibDoc.embedPng(pngData);
-      const page = pdfLibDoc.getPage(data.page - 1);
-      const dims = img.scale(0.2);
-      const cx = data.posX ?? 0;
-      const cy = data.posY ?? 0;
-      const x = cx - dims.width / 2;
-      const y = page.getHeight() - cy - dims.height / 2;
-      page.drawImage(img, { x, y, width: dims.width, height: dims.height });
+      const helvetica = await pdfLibDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+
+      for (let idx = 0; idx < data.fields.length; idx++) {
+        if (fieldValues[idx] === undefined) continue;
+        const field = data.fields[idx];
+        const pg = pdfLibDoc.getPage(field.page - 1);
+        const cx = field.posX;
+        const cy = pg.getHeight() - field.posY;
+
+        if (field.type === 'check') {
+          const s = 12;
+          pg.drawLine({ start: { x: cx - s*0.6, y: cy + s*0.1 }, end: { x: cx - s*0.1, y: cy - s*0.4 }, thickness: 2, color: PDFLib.rgb(0,0,0) });
+          pg.drawLine({ start: { x: cx - s*0.1, y: cy - s*0.4 }, end: { x: cx + s*0.7, y: cy + s*0.6 }, thickness: 2, color: PDFLib.rgb(0,0,0) });
+        } else if (field.type === 'date') {
+          pg.drawText(fieldValues[idx], { x: cx - 35, y: cy - 5, size: 11, font: helvetica, color: PDFLib.rgb(0,0,0) });
+        } else if (field.type === 'signature') {
+          const img = await pdfLibDoc.embedPng(fieldValues[idx]);
+          const dims = img.scale(0.2);
+          pg.drawImage(img, { x: cx - dims.width/2, y: cy - dims.height/2, width: dims.width, height: dims.height });
+        }
+      }
 
       const signedBytes = await pdfLibDoc.save();
-      function uint8ToBase64(arr) {
-        let b = '';
-        for (let i = 0; i < arr.length; i++) b += String.fromCharCode(arr[i]);
-        return btoa(b);
-      }
-      const signedBase64 = uint8ToBase64(signedBytes);
+      let signedBase64 = '';
+      for (let i = 0; i < signedBytes.length; i++) signedBase64 += String.fromCharCode(signedBytes[i]);
+      signedBase64 = btoa(signedBase64);
 
       const boundary = 'BOUNDARY';
-      const bodyText = `본인은 첨부된 "${data.docTitle}" 문서를 확인하였으며, 아래와 같이 서명합니다.\n\n- 제출자: ${name}\n- 제출 일시: ${new Date().toLocaleString()}`;
+      const filledList = data.fields.map((f, i) => fieldValues[i] !== undefined ? `· ${FIELD_CONFIG[f.type].label} (${f.page}p)` : null).filter(Boolean).join('\n');
+      const bodyText = `본인은 첨부된 "${data.docTitle}" 문서를 확인하였으며, 아래 항목에 서명/표시하였습니다.\n\n${filledList}\n\n- 제출자: ${userName}\n- 제출 일시: ${new Date().toLocaleString()}`;
       const parts = [
         `--${boundary}`, 'Content-Type: text/plain; charset=UTF-8', '', bodyText,
-        `--${boundary}`, 'Content-Type: application/pdf; name="document.pdf"', 'Content-Disposition: attachment; filename="document.pdf"', 'Content-Transfer-Encoding: base64', '', data.pdfBase64,
-        `--${boundary}`, 'Content-Type: image/png; name="signature.png"', 'Content-Disposition: attachment; filename="signature.png"', 'Content-Transfer-Encoding: base64', '', pngBase64,
         `--${boundary}`, 'Content-Type: application/pdf; name="signed.pdf"', 'Content-Disposition: attachment; filename="signed.pdf"', 'Content-Transfer-Encoding: base64', '', signedBase64,
         `--${boundary}--`
       ];
-      const subjectText = `[전자서명 제출] ${data.docTitle} - ${name}`;
+      const subjectText = `[전자서명 제출] ${data.docTitle} - ${userName}`;
       const utf8Bytes = new TextEncoder().encode(subjectText);
       const subject = `=?UTF-8?B?${btoa(String.fromCharCode(...utf8Bytes))}?=`;
       const lines = ['MIME-Version: 1.0', `To: ${data.receiver}`, `Subject: ${subject}`, `Content-Type: multipart/mixed; boundary=${boundary}`, '', ...parts];
@@ -295,12 +363,6 @@
         .catch(e => { console.error(e); closeLoadingModal(); alert('전송 실패'); });
       });
     }
-
-    window.startAuth = () => google.accounts.oauth2.initTokenClient({
-      client_id: '972595541590-k962h1slhqu6cm1r5fhp9nvdd8hu21vk.apps.googleusercontent.com',
-      scope: 'https://www.googleapis.com/auth/gmail.send',
-      callback: tok => { tokenGlobal = tok.access_token; openNameModal(); }
-    }).requestAccessToken();
 
     init();
   </script>
