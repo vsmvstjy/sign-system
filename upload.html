@@ -16,16 +16,20 @@
     #nav { margin-bottom: 10px; }
     #nav button { margin: 10px; padding: 10px 20px; font-size: 16px; border-radius: 6px; border: none; background: #1890ff; color: white; font-weight: bold; cursor: pointer; }
     button:hover { opacity: 0.85; }
-    #toolbar { display: none; max-width: 700px; margin: 10px auto; background: white; border: 1px solid #ddd; border-radius: 8px; padding: 12px; text-align: center; }
+    #toolbar { display: none; max-width: 800px; margin: 10px auto; background: white; border: 1px solid #ddd; border-radius: 8px; padding: 12px; text-align: center; }
     #toolbar span { font-weight: bold; margin-right: 8px; font-size: 14px; }
-    .tool-btn { padding: 8px 16px; margin: 4px; border-radius: 6px; border: 2px solid #ddd; background: white; cursor: pointer; font-size: 14px; font-weight: bold; }
-    .tool-btn[data-type="check"] { color: #1890ff; }
+    .tool-btn { padding: 8px 14px; margin: 4px; border-radius: 6px; border: 2px solid #ddd; background: white; cursor: pointer; font-size: 13px; font-weight: bold; }
+    .tool-btn[data-type="check"]     { color: #1890ff; }
     .tool-btn[data-type="signature"] { color: #ff5c5c; }
-    .tool-btn[data-type="date"] { color: #52c41a; }
-    .tool-btn.active[data-type="check"] { background: #e6f7ff; border-color: #1890ff; }
-    .tool-btn.active[data-type="signature"] { background: #fff1f0; border-color: #ff5c5c; }
-    .tool-btn.active[data-type="date"] { background: #f6ffed; border-color: #52c41a; }
-    #canvasWrap { position: relative; display: inline-block; cursor: crosshair; }
+    .tool-btn[data-type="date"]      { color: #52c41a; }
+    .tool-btn[data-type="name"]      { color: #722ed1; }
+    .tool-btn[data-type="memo"]      { color: #fa8c16; }
+    .tool-btn.active[data-type="check"]     { background:#e6f7ff; border-color:#1890ff; }
+    .tool-btn.active[data-type="signature"] { background:#fff1f0; border-color:#ff5c5c; }
+    .tool-btn.active[data-type="date"]      { background:#f6ffed; border-color:#52c41a; }
+    .tool-btn.active[data-type="name"]      { background:#f9f0ff; border-color:#722ed1; }
+    .tool-btn.active[data-type="memo"]      { background:#fff7e6; border-color:#fa8c16; }
+    #canvasWrap { position: relative; display: inline-block; cursor: crosshair; user-select: none; }
     canvas { display: block; border: 1px solid #ccc; }
     .field-marker { position: absolute; border-radius: 4px; text-align: center; font-weight: bold; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     #fieldList { max-width: 700px; margin: 12px auto; }
@@ -58,6 +62,8 @@
         <button class="tool-btn active" data-type="check">☑ 체크(√)</button>
         <button class="tool-btn" data-type="signature">✍ 서명</button>
         <button class="tool-btn" data-type="date">📅 날짜</button>
+        <button class="tool-btn" data-type="name">👤 이름</button>
+        <button class="tool-btn" data-type="memo">📝 메모(드래그)</button>
       </div>
       <div id="canvasWrap">
         <canvas id="pdfCanvas"></canvas>
@@ -92,9 +98,11 @@
     const pageInfo = document.getElementById('pageInfo');
 
     const FIELD_CONFIG = {
-      check:     { color: '#1890ff', label: '☑ 체크(√)', w: 50, h: 30 },
-      signature: { color: '#ff5c5c', label: '✍ 서명',   w: 100, h: 40 },
-      date:      { color: '#52c41a', label: '📅 날짜',   w: 90,  h: 30 },
+      check:     { color: '#1890ff', label: '☑ 체크', w: 40, h: 25 },
+      signature: { color: '#ff5c5c', label: '✍ 서명', w: 80, h: 30 },
+      date:      { color: '#52c41a', label: '📅 날짜', w: 80, h: 25 },
+      name:      { color: '#722ed1', label: '👤 이름', w: 80, h: 25 },
+      memo:      { color: '#fa8c16', label: '📝 메모' },
     };
 
     document.querySelectorAll('.tool-btn').forEach(btn => {
@@ -108,26 +116,24 @@
     async function compressPdf(rawBytes) {
       const scales = [1.2, 1.0, 0.8];
       const qualities = [0.85, 0.7];
-      for (const scale of scales) {
-        for (const quality of qualities) {
-          const src = await pdfjsLib.getDocument({ data: rawBytes }).promise;
-          const out = await PDFLib.PDFDocument.create();
-          for (let i = 1; i <= src.numPages; i++) {
-            const pg = await src.getPage(i);
-            const origVp = pg.getViewport({ scale: 1.0 });
-            const scaledVp = pg.getViewport({ scale });
-            const off = document.createElement('canvas');
-            off.width = scaledVp.width; off.height = scaledVp.height;
-            await pg.render({ canvasContext: off.getContext('2d'), viewport: scaledVp }).promise;
-            const b64 = off.toDataURL('image/jpeg', quality).split(',')[1];
-            const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-            const img = await out.embedJpg(bytes);
-            const newPg = out.addPage([origVp.width, origVp.height]);
-            newPg.drawImage(img, { x: 0, y: 0, width: origVp.width, height: origVp.height });
-          }
-          const saved = await out.save();
-          if (saved.length <= 720 * 1024) return saved;
+      for (const scale of scales) for (const quality of qualities) {
+        const src = await pdfjsLib.getDocument({ data: rawBytes }).promise;
+        const out = await PDFLib.PDFDocument.create();
+        for (let i = 1; i <= src.numPages; i++) {
+          const pg = await src.getPage(i);
+          const origVp = pg.getViewport({ scale: 1.0 });
+          const scaledVp = pg.getViewport({ scale });
+          const off = document.createElement('canvas');
+          off.width = scaledVp.width; off.height = scaledVp.height;
+          await pg.render({ canvasContext: off.getContext('2d'), viewport: scaledVp }).promise;
+          const b64 = off.toDataURL('image/jpeg', quality).split(',')[1];
+          const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+          const img = await out.embedJpg(bytes);
+          const newPg = out.addPage([origVp.width, origVp.height]);
+          newPg.drawImage(img, { x: 0, y: 0, width: origVp.width, height: origVp.height });
         }
+        const saved = await out.save();
+        if (saved.length <= 720 * 1024) return saved;
       }
       return null;
     }
@@ -139,10 +145,7 @@
         let rawBytes = Uint8Array.from(atob(reader.result.split(',')[1]), c => c.charCodeAt(0));
         if (file.size > 750 * 1024) {
           const compressed = await compressPdf(rawBytes);
-          if (!compressed) {
-            alert('파일 용량이 너무 커서 압축할 수 없습니다.\n더 작은 파일을 사용해 주세요.');
-            e.target.value = ''; return;
-          }
+          if (!compressed) { alert('파일 용량이 너무 커서 압축할 수 없습니다.'); e.target.value = ''; return; }
           alert(`파일이 자동으로 압축되었습니다.\n${(file.size/1024).toFixed(0)}KB → ${(compressed.length/1024).toFixed(0)}KB`);
           rawBytes = compressed;
         }
@@ -170,15 +173,23 @@
 
     function renderMarkers() {
       document.querySelectorAll('.field-marker').forEach(el => el.remove());
-      fields.filter(f => f.page === currentPage).forEach((field, _) => {
-        const idx = fields.indexOf(field);
+      fields.forEach((field, idx) => {
+        if (field.page !== currentPage) return;
         const cfg = FIELD_CONFIG[field.type];
         const div = document.createElement('div');
         div.className = 'field-marker';
-        const cssX = field.posX * RENDER_SCALE;
-        const cssY = field.posY * RENDER_SCALE;
-        div.style.cssText = `left:${cssX - cfg.w/2}px; top:${cssY - cfg.h/2}px;
-          width:${cfg.w}px; height:${cfg.h}px;
+        let cssX, cssY, w, h;
+        if (field.type === 'memo') {
+          cssX = field.posX * RENDER_SCALE;
+          cssY = field.posY * RENDER_SCALE;
+          w = field.w * RENDER_SCALE;
+          h = field.h * RENDER_SCALE;
+        } else {
+          cssX = field.posX * RENDER_SCALE - cfg.w/2;
+          cssY = field.posY * RENDER_SCALE - cfg.h/2;
+          w = cfg.w; h = cfg.h;
+        }
+        div.style.cssText = `left:${cssX}px; top:${cssY}px; width:${w}px; height:${h}px;
           background:${cfg.color}33; border:2px dashed ${cfg.color}; color:${cfg.color};`;
         div.textContent = cfg.label;
         div.title = '클릭하여 삭제';
@@ -206,21 +217,63 @@
         item.innerHTML = `<span style="color:${cfg.color}">${cfg.label}</span><span>${field.page}페이지</span><button class="del-btn">삭제</button>`;
         item.querySelector('.del-btn').addEventListener('click', () => {
           fields.splice(idx, 1);
-          renderMarkers();
-          renderFieldList();
+          renderMarkers(); renderFieldList();
         });
         list.appendChild(item);
       });
     }
 
-    canvas.addEventListener('click', e => {
+    let dragStart = null, dragRect = null;
+
+    canvas.addEventListener('mousedown', e => {
       if (!pdfDoc) return;
       const rect = canvas.getBoundingClientRect();
-      const posX = (e.clientX - rect.left) * (canvas.width / rect.width) / RENDER_SCALE;
-      const posY = (e.clientY - rect.top) * (canvas.height / rect.height) / RENDER_SCALE;
-      fields.push({ type: selectedType, page: currentPage, posX, posY });
-      renderMarkers();
-      renderFieldList();
+      dragStart = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      if (selectedType === 'memo') {
+        dragRect = document.createElement('div');
+        dragRect.style.cssText = `position:absolute; left:${dragStart.x}px; top:${dragStart.y}px;
+          width:0; height:0; border:2px dashed #fa8c16; background:rgba(250,140,22,0.2); pointer-events:none;`;
+        canvasWrap.appendChild(dragRect);
+      }
+    });
+
+    canvas.addEventListener('mousemove', e => {
+      if (!dragStart || !dragRect || selectedType !== 'memo') return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left, y = e.clientY - rect.top;
+      const left = Math.min(dragStart.x, x), top = Math.min(dragStart.y, y);
+      const w = Math.abs(x - dragStart.x), h = Math.abs(y - dragStart.y);
+      dragRect.style.left = `${left}px`; dragRect.style.top = `${top}px`;
+      dragRect.style.width = `${w}px`; dragRect.style.height = `${h}px`;
+    });
+
+    canvas.addEventListener('mouseup', e => {
+      if (!pdfDoc || !dragStart) return;
+      const rect = canvas.getBoundingClientRect();
+      const endX = e.clientX - rect.left, endY = e.clientY - rect.top;
+      const dx = Math.abs(endX - dragStart.x), dy = Math.abs(endY - dragStart.y);
+      const ratio = canvas.width / rect.width;
+
+      if (selectedType === 'memo') {
+        if (dragRect) dragRect.remove();
+        if (dx > 10 && dy > 10) {
+          fields.push({
+            type: 'memo', page: currentPage,
+            posX: Math.min(dragStart.x, endX) * ratio / RENDER_SCALE,
+            posY: Math.min(dragStart.y, endY) * ratio / RENDER_SCALE,
+            w: dx * ratio / RENDER_SCALE, h: dy * ratio / RENDER_SCALE,
+          });
+          renderMarkers(); renderFieldList();
+        }
+      } else if (dx < 5 && dy < 5) {
+        fields.push({
+          type: selectedType, page: currentPage,
+          posX: endX * ratio / RENDER_SCALE,
+          posY: endY * (canvas.height / rect.height) / RENDER_SCALE,
+        });
+        renderMarkers(); renderFieldList();
+      }
+      dragStart = null; dragRect = null;
     });
 
     document.getElementById('prevPage').onclick = () => { if (currentPage > 1) renderPage(--currentPage); };
