@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>경기대학교 전자서명 시스템</title>
   <style>
     * { box-sizing: border-box; }
@@ -124,7 +125,7 @@
     initializeApp(firebaseConfig);
     const db = getFirestore();
 
-    const RENDER_SCALE = 1.5;
+    const RENDER_SCALE = window.innerWidth < 768 ? 1.0 : 1.5;
     let data, pdfDoc, currentPage = 1, totalPages = 0;
     let userName = '';
     const canvas = document.getElementById('pdfCanvas');
