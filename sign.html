@@ -125,7 +125,7 @@
     initializeApp(firebaseConfig);
     const db = getFirestore();
 
-    const RENDER_SCALE = window.innerWidth < 768 ? 1.0 : 1.5;
+    const RENDER_SCALE = 1.5;
     let data, pdfDoc, currentPage = 1, totalPages = 0;
     let userName = '';
     const canvas = document.getElementById('pdfCanvas');
@@ -149,24 +149,30 @@
     }
 
     async function renderPage(n) {
-      const page = await pdfDoc.getPage(n);
-      const vp = page.getViewport({ scale: RENDER_SCALE });
-      canvas.width = vp.width;
-      canvas.height = vp.height;
-      await page.render({ canvasContext: ctx, viewport: vp }).promise;
-      pageInfo.textContent = `${n} / ${totalPages}`;
-      if (n === data.page) {
-        const rect = canvas.getBoundingClientRect();
-        const ratio = rect.width / canvas.width;
-        const cssX = data.posX * RENDER_SCALE * ratio;
-        const cssY = data.posY * RENDER_SCALE * ratio;
-        marker.style.display = 'block';
-        marker.style.left = `${cssX - marker.offsetWidth/2}px`;
-        marker.style.top = `${cssY - marker.offsetHeight/2}px`;
-      } else {
-        marker.style.display = 'none';
-      }
-    }
+  const page = await pdfDoc.getPage(n);
+  const vp = page.getViewport({ scale: RENDER_SCALE });
+  canvas.width = vp.width;
+  canvas.height = vp.height;
+  ctx.fillStyle = '#eee';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#999';
+  ctx.font = `${canvas.width * 0.04}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('로딩 중...', canvas.width / 2, canvas.height / 2);
+  await page.render({ canvasContext: ctx, viewport: vp }).promise;
+  pageInfo.textContent = `${n} / ${totalPages}`;
+  if (n === data.page) {
+    const rect = canvas.getBoundingClientRect();
+    const ratio = rect.width / canvas.width;
+    const cssX = data.posX * RENDER_SCALE * ratio;
+    const cssY = data.posY * RENDER_SCALE * ratio;
+    marker.style.display = 'block';
+    marker.style.left = `${cssX - marker.offsetWidth/2}px`;
+    marker.style.top = `${cssY - marker.offsetHeight/2}px`;
+  } else {
+    marker.style.display = 'none';
+  }
+}
 
     document.getElementById('prevPage').onclick = () => { if (currentPage > 1) renderPage(--currentPage); };
     document.getElementById('nextPage').onclick = () => { if (currentPage < totalPages) renderPage(++currentPage); };
@@ -212,28 +218,32 @@
     function closeLoadingModal() { document.getElementById('loadingModal').style.display = 'none'; }
 
     let drawing = false;
-    ['mousedown', 'touchstart'].forEach(evt =>
-      sigCanvas.addEventListener(evt, e => {
-        drawing = true;
-        const pos = e.touches ? e.touches[0] : e;
-        const rect = sigCanvas.getBoundingClientRect();
-        sigCtx.beginPath();
-        sigCtx.moveTo(pos.clientX - rect.left, pos.clientY - rect.top);
-      })
-    );
-    ['mousemove', 'touchmove'].forEach(evt =>
-      sigCanvas.addEventListener(evt, e => {
-        if (!drawing) return;
-        const pos = e.touches ? e.touches[0] : e;
-        const rect = sigCanvas.getBoundingClientRect();
-        sigCtx.lineTo(pos.clientX - rect.left, pos.clientY - rect.top);
-        sigCtx.stroke();
-        e.preventDefault();
-      })
-    );
-    ['mouseup', 'touchend', 'mouseout'].forEach(evt =>
-      sigCanvas.addEventListener(evt, () => drawing = false)
-    );
+['mousedown', 'touchstart'].forEach(evt =>
+  sigCanvas.addEventListener(evt, e => {
+    drawing = true;
+    const pos = e.touches ? e.touches[0] : e;
+    const rect = sigCanvas.getBoundingClientRect();
+    const scaleX = sigCanvas.width / rect.width;
+    const scaleY = sigCanvas.height / rect.height;
+    sigCtx.beginPath();
+    sigCtx.moveTo((pos.clientX - rect.left) * scaleX, (pos.clientY - rect.top) * scaleY);
+  })
+);
+['mousemove', 'touchmove'].forEach(evt =>
+  sigCanvas.addEventListener(evt, e => {
+    if (!drawing) return;
+    const pos = e.touches ? e.touches[0] : e;
+    const rect = sigCanvas.getBoundingClientRect();
+    const scaleX = sigCanvas.width / rect.width;
+    const scaleY = sigCanvas.height / rect.height;
+    sigCtx.lineTo((pos.clientX - rect.left) * scaleX, (pos.clientY - rect.top) * scaleY);
+    sigCtx.stroke();
+    e.preventDefault();
+  })
+);
+['mouseup', 'touchend', 'mouseout'].forEach(evt =>
+  sigCanvas.addEventListener(evt, () => drawing = false)
+);
 
     async function sendEmail() {
       openLoadingModal();
