@@ -21,7 +21,7 @@
     main { padding: 16px 20px 40px; }
     #pdfContainer { position: relative; width: 100%; max-width: 800px; margin: 0 auto; }
     canvas { display: block; width: 100%; height: auto; background: white; }
-    .field-marker { position: absolute; border-radius: 4px; text-align: center; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; transition: background 0.2s; }
+    .field-marker { position: absolute; border-radius: 4px; text-align: center; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; padding: 2px; overflow: hidden; }
     .field-marker:hover { filter: brightness(1.1); }
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 100; }
     .modal-content { background: #fff; padding: 20px; border-radius: 8px; text-align: center; max-width: 95vw; }
@@ -75,9 +75,17 @@
       <button id="saveSig" style="padding:15px 30px;font-size:24px;">완료</button>
     </div>
   </div>
+  <div id="textInputModal" class="modal">
+    <div class="modal-content">
+      <h3 id="textInputTitle" style="font-size:24px;">입력</h3>
+      <textarea id="textInputArea" rows="4" style="font-size:16px;padding:10px;width:90%;max-width:400px;border:1px solid #ccc;border-radius:6px;"></textarea><br>
+      <button id="cancelTextInput" style="background:#999;">취소</button>
+      <button id="saveTextInput">완료</button>
+    </div>
+  </div>
   <div id="nameModal" class="modal">
     <div class="modal-content">
-      <h3 style="font-size:30px;">이름을 입력하세요</h3>
+      <h3 style="font-size:30px;">제출자 이름을 입력하세요</h3>
       <input id="nameInput" type="text" placeholder="이름" style="font-size:24px;padding:10px;margin-top:20px;width:80%;border:1px solid #ccc;border-radius:8px;"><br><br>
       <button id="confirmName" style="padding:15px 30px;font-size:24px;">확인</button>
     </div>
@@ -85,7 +93,7 @@
   <div id="completeModal" class="modal">
     <div class="modal-content">
       <h3 style="font-size:30px;">🎉 제출 완료!</h3>
-      <p style="margin-top:10px;font-size:20px;">문서가 성공적으로 제출되었습니다.<br>확인 버튼을 눌러주세요.</p><br>
+      <p style="margin-top:10px;font-size:20px;">문서가 성공적으로 제출되었습니다.</p><br>
       <button id="closeComplete" style="padding:15px 30px;font-size:24px;">확인</button>
     </div>
   </div>
@@ -122,6 +130,7 @@
     let userName = '';
     let fieldValues = {};
     let currentSigningField = -1;
+    let currentTextField = -1;
     let tokenGlobal;
 
     const canvas = document.getElementById('pdfCanvas');
@@ -133,9 +142,11 @@
     const sigCtx = sigCanvas.getContext('2d');
 
     const FIELD_CONFIG = {
-      check:     { color: '#1890ff', label: '☑ 체크',  w: 50, h: 30 },
-      signature: { color: '#ff5c5c', label: '✍ 서명',  w: 100, h: 40 },
-      date:      { color: '#52c41a', label: '📅 날짜',  w: 90, h: 30 },
+      check:     { color: '#1890ff', label: '☑ 체크', w: 40, h: 25 },
+      signature: { color: '#ff5c5c', label: '✍ 서명', w: 80, h: 30 },
+      date:      { color: '#52c41a', label: '📅 날짜', w: 80, h: 25 },
+      name:      { color: '#722ed1', label: '👤 이름', w: 80, h: 25 },
+      memo:      { color: '#fa8c16', label: '📝 메모' },
     };
 
     async function init() {
@@ -144,9 +155,7 @@
       const snap = await getDoc(doc(db, 'signRequests', id));
       if (!snap.exists()) return alert('잘못된 링크입니다.');
       data = snap.data();
-      if (!data.fields) {
-        data.fields = [{ type: 'signature', page: data.page, posX: data.posX, posY: data.posY }];
-      }
+      if (!data.fields) data.fields = [{ type: 'signature', page: data.page, posX: data.posX, posY: data.posY }];
       const rawPdf = Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0));
       pdfDoc = await pdfjsLib.getDocument({ data: rawPdf }).promise;
       totalPages = pdfDoc.numPages;
@@ -178,25 +187,37 @@
         const cfg = FIELD_CONFIG[field.type];
         const div = document.createElement('div');
         div.className = 'field-marker';
-        const cssX = field.posX * RENDER_SCALE * ratio;
-        const cssY = field.posY * RENDER_SCALE * ratio;
         const filled = fieldValues[idx] !== undefined;
+
+        let cssX, cssY, w, h;
+        if (field.type === 'memo') {
+          cssX = field.posX * RENDER_SCALE * ratio;
+          cssY = field.posY * RENDER_SCALE * ratio;
+          w = field.w * RENDER_SCALE * ratio;
+          h = field.h * RENDER_SCALE * ratio;
+        } else {
+          cssX = field.posX * RENDER_SCALE * ratio - cfg.w/2;
+          cssY = field.posY * RENDER_SCALE * ratio - cfg.h/2;
+          w = cfg.w; h = cfg.h;
+        }
 
         let label = cfg.label;
         if (filled) {
           if (field.type === 'check') label = '✓';
           else if (field.type === 'date') label = fieldValues[idx];
-          else label = '✓ 서명완료';
+          else if (field.type === 'signature') label = '✓ 서명완료';
+          else if (field.type === 'name') label = fieldValues[idx];
+          else if (field.type === 'memo') {
+            label = fieldValues[idx];
+          }
         }
 
-        div.style.cssText = `
-          left:${cssX - cfg.w/2}px; top:${cssY - cfg.h/2}px;
-          width:${cfg.w}px; height:${cfg.h}px;
+        div.style.cssText = `left:${cssX}px; top:${cssY}px; width:${w}px; height:${h}px;
           background:${filled ? cfg.color+'55' : cfg.color+'22'};
           border:2px ${filled ? 'solid' : 'dashed'} ${cfg.color};
           color:${cfg.color};
-          font-size:${field.type==='date'&&filled?'10':'12'}px;
-        `;
+          font-size:${field.type==='memo' ? '11' : (field.type==='date'&&filled?'10':'12')}px;
+          ${field.type==='memo' ? 'white-space:pre-wrap; text-align:left; align-items:flex-start; padding:4px;' : ''}`;
         div.textContent = label;
         div.addEventListener('click', () => handleFieldClick(idx));
         pdfContainer.appendChild(div);
@@ -205,7 +226,6 @@
 
     function handleFieldClick(idx) {
       const field = data.fields[idx];
-      // If already filled, allow toggle/clear
       if (fieldValues[idx] !== undefined) {
         if (confirm('이 항목을 취소하시겠습니까?')) {
           delete fieldValues[idx];
@@ -216,19 +236,42 @@
       }
       if (field.type === 'check') {
         fieldValues[idx] = true;
-        updateProgress();
-        renderFieldMarkers();
+        updateProgress(); renderFieldMarkers();
       } else if (field.type === 'date') {
-        const today = new Date();
-        fieldValues[idx] = `${today.getFullYear()}. ${today.getMonth()+1}. ${today.getDate()}.`;
-        updateProgress();
-        renderFieldMarkers();
+        const t = new Date();
+        fieldValues[idx] = `${t.getFullYear()}. ${t.getMonth()+1}. ${t.getDate()}.`;
+        updateProgress(); renderFieldMarkers();
       } else if (field.type === 'signature') {
         currentSigningField = idx;
         sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
         sigModal.style.display = 'flex';
+      } else if (field.type === 'name') {
+        openTextInput(idx, '이름 입력', false);
+      } else if (field.type === 'memo') {
+        openTextInput(idx, '메모 입력', true);
       }
     }
+
+    function openTextInput(idx, title, multiline) {
+      currentTextField = idx;
+      document.getElementById('textInputTitle').textContent = title;
+      const area = document.getElementById('textInputArea');
+      area.value = '';
+      area.rows = multiline ? 5 : 1;
+      document.getElementById('textInputModal').style.display = 'flex';
+      setTimeout(() => area.focus(), 100);
+    }
+
+    document.getElementById('saveTextInput').onclick = () => {
+      const v = document.getElementById('textInputArea').value.trim();
+      if (!v) { alert('내용을 입력해주세요'); return; }
+      fieldValues[currentTextField] = v;
+      document.getElementById('textInputModal').style.display = 'none';
+      updateProgress(); renderFieldMarkers();
+    };
+    document.getElementById('cancelTextInput').onclick = () => {
+      document.getElementById('textInputModal').style.display = 'none';
+    };
 
     function updateProgress() {
       const total = data.fields.length;
@@ -241,8 +284,7 @@
     document.getElementById('saveSig').onclick = () => {
       sigModal.style.display = 'none';
       fieldValues[currentSigningField] = sigCanvas.toDataURL();
-      updateProgress();
-      renderFieldMarkers();
+      updateProgress(); renderFieldMarkers();
     };
 
     let drawing = false;
@@ -279,15 +321,13 @@
       if (!userName) {
         document.getElementById('nameInput').value = '';
         document.getElementById('nameModal').style.display = 'flex';
-      } else {
-        startAuthAndSend();
-      }
+      } else startAuthAndSend();
     };
 
     document.getElementById('confirmName').onclick = () => {
-      const name = document.getElementById('nameInput').value.trim();
-      if (!name) { alert('이름을 입력해 주세요!'); return; }
-      userName = name;
+      const n = document.getElementById('nameInput').value.trim();
+      if (!n) { alert('이름을 입력해 주세요!'); return; }
+      userName = n;
       document.getElementById('nameModal').style.display = 'none';
       startAuthAndSend();
     };
@@ -300,16 +340,49 @@
       }).requestAccessToken();
     }
 
-    function openCompleteModal() { document.getElementById('completeModal').style.display = 'flex'; }
     document.getElementById('closeComplete').onclick = () => { document.getElementById('completeModal').style.display = 'none'; };
-    function openLoadingModal() { document.getElementById('loadingModal').style.display = 'flex'; }
-    function closeLoadingModal() { document.getElementById('loadingModal').style.display = 'none'; }
+
+    async function renderTextToPng(text, width, height, opts) {
+      const dpr = 3;
+      const c = document.createElement('canvas');
+      c.width = width * dpr; c.height = height * dpr;
+      const cctx = c.getContext('2d');
+      cctx.scale(dpr, dpr);
+      cctx.fillStyle = opts.color || 'black';
+      const sz = opts.size || 12;
+      cctx.font = `${opts.bold ? 'bold ' : ''}${sz}px 'Malgun Gothic', '맑은 고딕', sans-serif`;
+      cctx.textBaseline = 'top';
+      if (opts.multiline) {
+        const maxW = width - 4;
+        const lineH = sz * 1.4;
+        let y = 2;
+        for (const para of text.split('\n')) {
+          let cur = '';
+          for (const ch of para) {
+            const test = cur + ch;
+            if (cctx.measureText(test).width > maxW && cur) {
+              cctx.fillText(cur, 2, y);
+              y += lineH;
+              cur = ch;
+              if (y + lineH > height) break;
+            } else cur = test;
+          }
+          if (cur && y + sz <= height) { cctx.fillText(cur, 2, y); y += lineH; }
+          if (y + lineH > height) break;
+        }
+      } else {
+        cctx.textAlign = opts.align || 'center';
+        const tx = opts.align === 'left' ? 2 : (opts.align === 'right' ? width - 2 : width/2);
+        cctx.fillText(text, tx, height/2 - sz/2);
+      }
+      return c.toDataURL('image/png');
+    }
 
     async function sendEmail() {
-      openLoadingModal();
+      document.getElementById('loadingModal').style.display = 'flex';
       const rawPdf = Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0));
       const pdfLibDoc = await PDFLib.PDFDocument.load(rawPdf);
-      const helvetica = await pdfLibDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+      const helveticaBold = await pdfLibDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
 
       for (let idx = 0; idx < data.fields.length; idx++) {
         if (fieldValues[idx] === undefined) continue;
@@ -320,14 +393,25 @@
 
         if (field.type === 'check') {
           const s = 12;
-          pg.drawLine({ start: { x: cx - s*0.6, y: cy + s*0.1 }, end: { x: cx - s*0.1, y: cy - s*0.4 }, thickness: 2, color: PDFLib.rgb(0,0,0) });
-          pg.drawLine({ start: { x: cx - s*0.1, y: cy - s*0.4 }, end: { x: cx + s*0.7, y: cy + s*0.6 }, thickness: 2, color: PDFLib.rgb(0,0,0) });
+          pg.drawLine({ start:{x:cx-s*0.6,y:cy+s*0.1}, end:{x:cx-s*0.1,y:cy-s*0.4}, thickness:2, color:PDFLib.rgb(0,0,0) });
+          pg.drawLine({ start:{x:cx-s*0.1,y:cy-s*0.4}, end:{x:cx+s*0.7,y:cy+s*0.6}, thickness:2, color:PDFLib.rgb(0,0,0) });
         } else if (field.type === 'date') {
-          pg.drawText(fieldValues[idx], { x: cx - 35, y: cy - 5, size: 11, font: helvetica, color: PDFLib.rgb(0,0,0) });
+          pg.drawText(fieldValues[idx], { x: cx - 38, y: cy - 6, size: 13, font: helveticaBold, color: PDFLib.rgb(0,0,0) });
         } else if (field.type === 'signature') {
           const img = await pdfLibDoc.embedPng(fieldValues[idx]);
-          const dims = img.scale(0.2);
+          const dims = img.scale(0.18);
           pg.drawImage(img, { x: cx - dims.width/2, y: cy - dims.height/2, width: dims.width, height: dims.height });
+        } else if (field.type === 'name') {
+          const w = 100, h = 24;
+          const png = await renderTextToPng(fieldValues[idx], w, h, { size: 13, bold: true, align: 'center' });
+          const b64 = png.split(',')[1];
+          const img = await pdfLibDoc.embedPng(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
+          pg.drawImage(img, { x: cx - w/2, y: cy - h/2, width: w, height: h });
+        } else if (field.type === 'memo') {
+          const png = await renderTextToPng(fieldValues[idx], field.w, field.h, { size: 11, multiline: true, align: 'left' });
+          const b64 = png.split(',')[1];
+          const img = await pdfLibDoc.embedPng(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
+          pg.drawImage(img, { x: cx, y: cy - field.h, width: field.w, height: field.h });
         }
       }
 
@@ -337,13 +421,24 @@
       signedBase64 = btoa(signedBase64);
 
       const boundary = 'BOUNDARY';
-      const filledList = data.fields.map((f, i) => fieldValues[i] !== undefined ? `· ${FIELD_CONFIG[f.type].label} (${f.page}p)` : null).filter(Boolean).join('\n');
-      const bodyText = `본인은 첨부된 "${data.docTitle}" 문서를 확인하였으며, 아래 항목에 서명/표시하였습니다.\n\n${filledList}\n\n- 제출자: ${userName}\n- 제출 일시: ${new Date().toLocaleString()}`;
+      const bodyText = `본인은 첨부된 "${data.docTitle}" 문서를 확인하였으며, 아래와 같이 서명/표시합니다.\n\n- 제출자: ${userName}\n- 제출 일시: ${new Date().toLocaleString()}`;
       const parts = [
         `--${boundary}`, 'Content-Type: text/plain; charset=UTF-8', '', bodyText,
         `--${boundary}`, 'Content-Type: application/pdf; name="signed.pdf"', 'Content-Disposition: attachment; filename="signed.pdf"', 'Content-Transfer-Encoding: base64', '', signedBase64,
-        `--${boundary}--`
       ];
+
+      const sigFields = data.fields.map((f, i) => f.type === 'signature' && fieldValues[i] ? { idx: i, data: fieldValues[i] } : null).filter(Boolean);
+      sigFields.forEach((s, i) => {
+        const fname = sigFields.length > 1 ? `signature_${i+1}.png` : 'signature.png';
+        parts.push(
+          `--${boundary}`,
+          `Content-Type: image/png; name="${fname}"`,
+          `Content-Disposition: attachment; filename="${fname}"`,
+          'Content-Transfer-Encoding: base64', '', s.data.split(',')[1]
+        );
+      });
+      parts.push(`--${boundary}--`);
+
       const subjectText = `[전자서명 제출] ${data.docTitle} - ${userName}`;
       const utf8Bytes = new TextEncoder().encode(subjectText);
       const subject = `=?UTF-8?B?${btoa(String.fromCharCode(...utf8Bytes))}?=`;
@@ -359,8 +454,15 @@
           gapi.client.setToken({ access_token: tokenGlobal });
           return gapi.client.gmail.users.messages.send({ userId: 'me', resource: { raw } });
         })
-        .then(() => { closeLoadingModal(); openCompleteModal(); })
-        .catch(e => { console.error(e); closeLoadingModal(); alert('전송 실패'); });
+        .then(() => {
+          document.getElementById('loadingModal').style.display = 'none';
+          document.getElementById('completeModal').style.display = 'flex';
+        })
+        .catch(e => {
+          console.error(e);
+          document.getElementById('loadingModal').style.display = 'none';
+          alert('전송 실패');
+        });
       });
     }
 
