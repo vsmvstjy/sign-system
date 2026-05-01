@@ -2,16 +2,34 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>전자 서명</title>
+  <title>경기대학교 전자서명 시스템</title>
   <style>
-    body { margin: 0; padding: 20px; font-family: sans-serif; background: #f9f9f9; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: sans-serif; background: #f9f9f9; }
+    header {
+      background: #002D72;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    header img { height: 44px; }
+    header .title-wrap { color: white; }
+    header .title-wrap .sub { font-size: 11px; opacity: 0.75; letter-spacing: 0.5px; }
+    header .title-wrap .main { font-size: 17px; font-weight: bold; }
+    .notice {
+      max-width: 800px; margin: 16px auto 0;
+      background: #e8f0fe; border-left: 4px solid #002D72;
+      padding: 10px 16px; border-radius: 4px;
+      font-size: 13px; color: #333;
+    }
+    main { padding: 16px 20px 40px; }
     #pdfContainer { position: relative; width: 100%; max-width: 800px; margin: 0 auto; }
     canvas { display: block; width: 100%; height: auto; background: white; }
     #marker {
       position: absolute; width: 100px; height: 40px;
       background: rgba(255, 248, 220, 0.5);
-      border: 2px dashed #ff5c5c;
-      border-radius: 6px; display: none;
+      border: 2px dashed #ff5c5c; border-radius: 6px; display: none;
       text-align: center; line-height: 40px; font-weight: bold; color: #ff5c5c;
       pointer-events: none;
     }
@@ -19,58 +37,68 @@
     .modal-content { background: #fff; padding: 20px; border-radius: 8px; text-align: center; }
     #sigCanvas { border: 1px solid #ccc; touch-action: none; }
     button {
-      margin: 10px;
-      padding: 10px 20px;
-      font-size: 16px;
-      border-radius: 6px;
-      border: none;
-      background: #1890ff;
-      color: white;
-      font-weight: bold;
-      cursor: pointer;
-      transition: background 0.3s;
+      margin: 10px; padding: 10px 20px; font-size: 16px;
+      border-radius: 6px; border: none; background: #1890ff;
+      color: white; font-weight: bold; cursor: pointer; transition: background 0.3s;
     }
-    button:hover {
-      background: #40a9ff;
+    button:hover { background: #40a9ff; }
+    .page-nav { text-align: center; margin-bottom: 10px; }
+    footer {
+      text-align: center; padding: 16px;
+      font-size: 12px; color: #999; border-top: 1px solid #e8e8e8;
     }
   </style>
 </head>
 <body>
-  <div style="text-align:center; margin-bottom:10px;">
-    <button id="prevPage">이전 페이지</button>
-    <span id="pageInfo">0 / 0</span>
-    <button id="nextPage">다음 페이지</button>
+  <header>
+    <img src="logo.png" alt="경기대학교 로고">
+    <div class="title-wrap">
+      <div class="sub">KYONGGI UNIVERSITY</div>
+      <div class="main">연구지원팀 전자서명 시스템</div>
+    </div>
+  </header>
+  <div class="notice">
+    본 문서는 연구지원팀 전자서명 시스템을 통해 서명자의 학교 이메일 계정을 사용하여 제출됩니다.
   </div>
-  <div id="pdfContainer">
-    <canvas id="pdfCanvas"></canvas>
-    <div id="marker">서명</div>
-  </div>
+  <main>
+    <div class="page-nav">
+      <button id="prevPage">이전 페이지</button>
+      <span id="pageInfo">0 / 0</span>
+      <button id="nextPage">다음 페이지</button>
+    </div>
+    <div id="pdfContainer">
+      <canvas id="pdfCanvas"></canvas>
+      <div id="marker">서명</div>
+    </div>
+  </main>
+  <footer>개발 · 운영: 경기대학교 연구지원팀 이주영</footer>
+
   <div id="sigModal" class="modal">
     <div class="modal-content">
       <h3 style="font-size:40px;">서명해 주세요</h3>
       <canvas id="sigCanvas" width="800" height="300"></canvas><br>
-      <button id="clearSig" style="padding: 20px 40px; font-size: 30px; border-radius: 10px;">지우기</button>
-      <button id="saveSig" style="padding: 20px 40px; font-size: 30px; border-radius: 10px;">완료</button>
+      <button id="clearSig" style="padding:20px 40px;font-size:30px;border-radius:10px;">지우기</button>
+      <button id="saveSig" style="padding:20px 40px;font-size:30px;border-radius:10px;">완료</button>
     </div>
   </div>
   <div id="nameModal" class="modal">
     <div class="modal-content">
       <h3 style="font-size:30px;">이름을 입력하세요</h3>
-      <input id="nameInput" type="text" placeholder="이름" style="font-size:24px; padding:10px; margin-top:20px; width:80%; border:1px solid #ccc; border-radius:8px;"><br><br>
-      <button id="confirmName" style="padding: 15px 30px; font-size: 24px; border-radius: 10px;">확인</button>
+      <input id="nameInput" type="text" placeholder="이름" style="font-size:24px;padding:10px;margin-top:20px;width:80%;border:1px solid #ccc;border-radius:8px;"><br><br>
+      <button id="confirmName" style="padding:15px 30px;font-size:24px;border-radius:10px;">확인</button>
     </div>
   </div>
   <div id="completeModal" class="modal">
     <div class="modal-content">
       <h3 style="font-size:30px;">🎉 제출 완료!</h3>
-      <p style="margin-top:10px; font-size:20px;">문서가 성공적으로 제출되었습니다.<br>확인 버튼을 눌러주세요.</p><br>
-      <button id="closeComplete" style="padding: 15px 30px; font-size: 24px; border-radius: 10px;">확인</button>
+      <p style="margin-top:10px;font-size:20px;">문서가 성공적으로 제출되었습니다.<br>확인 버튼을 눌러주세요.</p><br>
+      <button id="closeComplete" style="padding:15px 30px;font-size:24px;border-radius:10px;">확인</button>
     </div>
   </div>
   <div id="loadingModal" class="modal">
     <div class="modal-content">
       <h3 style="font-size:30px;">⏳ 제출 중입니다...</h3>
-      <p style="margin-top:10px; font-size:20px;">잠시만 기다려 주세요.</p>
+      <p style="margin-top:10px;font-size:20px;">잠시만 기다려 주세요.</p>
     </div>
   </div>
 
@@ -168,7 +196,6 @@
       document.getElementById('nameInput').value = '';
       document.getElementById('nameModal').style.display = 'flex';
     }
-
     document.getElementById('confirmName').onclick = () => {
       const name = document.getElementById('nameInput').value.trim();
       if (!name) { alert('이름을 입력해 주세요!'); return; }
@@ -216,19 +243,17 @@
       const img = await pdfLibDoc.embedPng(pngData);
       const page = pdfLibDoc.getPage(data.page - 1);
       const dims = img.scale(0.2);
-
       const cx = data.posX ?? 0;
       const cy = data.posY ?? 0;
       const x = cx - dims.width / 2;
       const y = page.getHeight() - cy - dims.height / 2;
-
       page.drawImage(img, { x, y, width: dims.width, height: dims.height });
 
       const signedBytes = await pdfLibDoc.save();
-      function uint8ToBase64(uint8Array) {
-        let binary = '';
-        for (let i = 0; i < uint8Array.length; i++) binary += String.fromCharCode(uint8Array[i]);
-        return btoa(binary);
+      function uint8ToBase64(arr) {
+        let b = '';
+        for (let i = 0; i < arr.length; i++) b += String.fromCharCode(arr[i]);
+        return btoa(b);
       }
       const signedBase64 = uint8ToBase64(signedBytes);
 
@@ -241,15 +266,11 @@
         `--${boundary}`, 'Content-Type: application/pdf; name="signed.pdf"', 'Content-Disposition: attachment; filename="signed.pdf"', 'Content-Transfer-Encoding: base64', '', signedBase64,
         `--${boundary}--`
       ];
-
       const subjectText = `[전자서명 제출] ${data.docTitle} - ${name}`;
       const utf8Bytes = new TextEncoder().encode(subjectText);
-      const subjectEncoded = btoa(String.fromCharCode(...utf8Bytes));
-      const subject = `=?UTF-8?B?${subjectEncoded}?=`;
-
+      const subject = `=?UTF-8?B?${btoa(String.fromCharCode(...utf8Bytes))}?=`;
       const lines = ['MIME-Version: 1.0', `To: ${data.receiver}`, `Subject: ${subject}`, `Content-Type: multipart/mixed; boundary=${boundary}`, '', ...parts];
-      const emailBody = lines.join('\r\n');
-      const raw = btoa(unescape(encodeURIComponent(emailBody))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/, '');
+      const raw = btoa(unescape(encodeURIComponent(lines.join('\r\n')))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 
       gapi.load('client', () => {
         gapi.client.init({
