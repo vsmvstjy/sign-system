@@ -91,8 +91,8 @@
 
     document.getElementById('pdfFile').addEventListener('change', e => {
       const file = e.target.files[0];
-      if (file.size > 700 * 1024) {
-        alert(`파일 용량이 너무 큽니다 (${(file.size / 1024).toFixed(0)}KB).\n700KB 이하의 PDF만 사용 가능합니다.`);
+      if (file.size > 760 * 1024) {
+        alert(`파일 용량이 너무 큽니다 (${(file.size / 1024).toFixed(0)}KB).\n760KB 이하의 PDF만 사용 가능합니다.`);
         e.target.value = '';
         return;
       }
