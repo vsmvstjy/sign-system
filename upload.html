@@ -2,45 +2,84 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>문서 업로드 및 서명 위치 지정 (관리자)</title>
+  <title>경기대학교 전자서명 시스템 - 관리자</title>
   <style>
-    body { font-family: sans-serif; margin: 0; padding: 20px; background: #f9f9f9; }
+    * { box-sizing: border-box; }
+    body { font-family: sans-serif; margin: 0; background: #f9f9f9; }
+    header {
+      background: #002D72;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    header img { height: 44px; }
+    header .title-wrap { color: white; }
+    header .title-wrap .sub { font-size: 11px; opacity: 0.75; letter-spacing: 0.5px; }
+    header .title-wrap .main { font-size: 17px; font-weight: bold; }
+    main { padding: 20px; }
     #pdfArea { text-align: center; }
     #nav { margin-bottom: 10px; }
-    #nav button { margin: 10px; padding: 10px 20px; font-size: 16px; border-radius: 6px; border: none; background: #1890ff; color: white; font-weight: bold; cursor: pointer; transition: background 0.3s; }
+    #nav button {
+      margin: 10px; padding: 10px 20px; font-size: 16px;
+      border-radius: 6px; border: none; background: #1890ff;
+      color: white; font-weight: bold; cursor: pointer; transition: background 0.3s;
+    }
     button:hover { background: #40a9ff; }
     canvas { border: 1px solid #ccc; display: block; margin: 0 auto 20px auto; cursor: crosshair; }
-    #marker { position: absolute; width: 100px; height: 40px; background: rgba(255, 248, 220, 0.5); border: 2px dashed #ff5c5c; border-radius: 6px; display: none; pointer-events: none; text-align: center; line-height: 40px; font-weight: bold; color: #ff5c5c; font-size: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+    #marker {
+      position: absolute; width: 100px; height: 40px;
+      background: rgba(255, 248, 220, 0.5);
+      border: 2px dashed #ff5c5c; border-radius: 6px; display: none;
+      pointer-events: none; text-align: center; line-height: 40px;
+      font-weight: bold; color: #ff5c5c; font-size: 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
     #formArea { max-width: 500px; margin: 30px auto; text-align: center; }
     #formArea input, #formArea button { width: 100%; margin: 8px 0; padding: 10px; font-size: 14px; }
     #linkOutput { text-align: center; word-break: break-word; }
+    footer {
+      text-align: center; padding: 16px;
+      font-size: 12px; color: #999; border-top: 1px solid #e8e8e8; margin-top: 40px;
+    }
   </style>
 </head>
 <body>
-  <div id="pdfArea">
-    <div id="nav">
-      <button id="prevPage">이전 페이지</button>
-      <span id="pageInfo">Page 0/0</span>
-      <button id="nextPage">다음 페이지</button>
+  <header>
+    <img src="logo.png" alt="경기대학교 로고">
+    <div class="title-wrap">
+      <div class="sub">KYONGGI UNIVERSITY</div>
+      <div class="main">연구지원팀 전자서명 시스템</div>
     </div>
-    <canvas id="pdfCanvas"></canvas>
-    <div id="marker">서명</div>
-  </div>
-  <div id="formArea">
-    <input type="text" id="docTitle" placeholder="문서 제목">
-    <input type="email" id="receiver" placeholder="회신 받을 이메일">
-    <input type="file" id="pdfFile" accept="application/pdf">
-    <button id="generate">링크 생성</button>
-    <p id="linkOutput"></p>
-  </div>
+  </header>
+  <main>
+    <div id="pdfArea">
+      <div id="nav">
+        <button id="prevPage">이전 페이지</button>
+        <span id="pageInfo">Page 0/0</span>
+        <button id="nextPage">다음 페이지</button>
+      </div>
+      <canvas id="pdfCanvas"></canvas>
+      <div id="marker">서명</div>
+    </div>
+    <div id="formArea">
+      <input type="text" id="docTitle" placeholder="문서 제목">
+      <input type="email" id="receiver" placeholder="회신 받을 이메일">
+      <input type="file" id="pdfFile" accept="application/pdf">
+      <button id="generate">링크 생성</button>
+      <p id="linkOutput"></p>
+    </div>
+  </main>
+  <footer>개발 · 운영: 경기대학교 연구지원팀 이주영</footer>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
   <script>
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
         'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
   </script>
   <script type="module">
     import { db } from './firebase-config.js';
-    import { doc, setDoc, Timestamp } 
+    import { doc, setDoc, Timestamp }
       from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
 
     const RENDER_SCALE = 1.2;
@@ -51,13 +90,13 @@
     const pageInfo = document.getElementById('pageInfo');
 
     document.getElementById('pdfFile').addEventListener('change', e => {
-    const file = e.target.files[0];
-    if (file.size > 700 * 1024) {
-    alert(`파일 용량이 너무 큽니다 (${(file.size / 1024).toFixed(0)}KB).\n700KB 이하의 PDF만 사용 가능합니다.`);
-    e.target.value = '';
-    return;
-  }
-  const reader = new FileReader();
+      const file = e.target.files[0];
+      if (file.size > 700 * 1024) {
+        alert(`파일 용량이 너무 큽니다 (${(file.size / 1024).toFixed(0)}KB).\n700KB 이하의 PDF만 사용 가능합니다.`);
+        e.target.value = '';
+        return;
+      }
+      const reader = new FileReader();
       reader.onload = async () => {
         pdfBase64 = reader.result.split(',')[1];
         const raw = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
