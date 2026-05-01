@@ -155,15 +155,15 @@
   canvas.height = vp.height;
       
       ctx.fillStyle = '#f0f0f0';
-ctx.fillRect(0, 0, canvas.width, canvas.height);
-ctx.fillStyle = '#888';
-ctx.font = `bold ${canvas.width * 0.035}px sans-serif`;
-ctx.textAlign = 'center';
-ctx.fillText('문서를 불러오는 중입니다...', canvas.width / 2, canvas.height / 2 - 10);
-ctx.font = `${canvas.width * 0.025}px sans-serif`;
-ctx.fillStyle = '#aaa';
-ctx.fillText('잠시만 기다려 주세요', canvas.width / 2, canvas.height / 2 + 30);
-      await new Promise(resolve => setTimeout(resolve, 0));
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#888';
+     ctx.font = `bold ${canvas.width * 0.035}px sans-serif`;
+     ctx.textAlign = 'center';
+     ctx.fillText('문서를 불러오는 중입니다...', canvas.width / 2, canvas.height / 2 - 10);
+     ctx.font = `${canvas.width * 0.025}px sans-serif`;
+     ctx.fillStyle = '#aaa';
+     ctx.fillText('잠시만 기다려 주세요', canvas.width / 2, canvas.height / 2 + 30);
+  await new Promise(resolve => requestAnimationFrame(resolve));
       
   await page.render({ canvasContext: ctx, viewport: vp }).promise;
   pageInfo.textContent = `${n} / ${totalPages}`;
