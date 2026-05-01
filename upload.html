@@ -140,21 +140,18 @@
 
     document.getElementById('pdfFile').addEventListener('change', e => {
       const file = e.target.files[0];
+      if (file.size > 750 * 1024) {
+        alert(`파일 용량이 너무 큽니다 (${(file.size / 1024).toFixed(0)}KB).\n750KB 이하의 PDF만 사용 가능합니다.`);
+        e.target.value = '';
+        return;
+      }
       const reader = new FileReader();
       reader.onload = async () => {
-        let rawBytes = Uint8Array.from(atob(reader.result.split(',')[1]), c => c.charCodeAt(0));
-        if (file.size > 750 * 1024) {
-          const compressed = await compressPdf(rawBytes);
-          if (!compressed) { alert('파일 용량이 너무 커서 압축할 수 없습니다.'); e.target.value = ''; return; }
-          alert(`파일이 자동으로 압축되었습니다.\n${(file.size/1024).toFixed(0)}KB → ${(compressed.length/1024).toFixed(0)}KB`);
-          rawBytes = compressed;
-        }
-        pdfBase64 = btoa(String.fromCharCode(...rawBytes));
-        pdfDoc = await pdfjsLib.getDocument({ data: rawBytes }).promise;
+        pdfBase64 = reader.result.split(',')[1];
+        const raw = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
+        pdfDoc = await pdfjsLib.getDocument({data: raw}).promise;
         totalPages = pdfDoc.numPages;
         currentPage = 1;
-        fields = [];
-        document.getElementById('toolbar').style.display = 'block';
         await renderPage(currentPage);
       };
       reader.readAsDataURL(file);
