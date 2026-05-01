@@ -216,7 +216,7 @@
           background:${filled ? cfg.color+'55' : cfg.color+'22'};
           border:2px ${filled ? 'solid' : 'dashed'} ${cfg.color};
           color:${cfg.color};
-          font-size:${field.type==='memo' ? '11' : (field.type==='date'&&filled?'10':'12')}px;
+          font-size:${field.type==='memo' ? '11' : (field.type==='date'&&filled?'15':'15')}px;
           ${field.type==='memo' ? 'white-space:pre-wrap; text-align:left; align-items:flex-start; padding:4px;' : ''}`;
         div.textContent = label;
         div.addEventListener('click', () => handleFieldClick(idx));
@@ -396,7 +396,7 @@
           pg.drawLine({ start:{x:cx-s*0.6,y:cy+s*0.1}, end:{x:cx-s*0.1,y:cy-s*0.4}, thickness:2, color:PDFLib.rgb(0,0,0) });
           pg.drawLine({ start:{x:cx-s*0.1,y:cy-s*0.4}, end:{x:cx+s*0.7,y:cy+s*0.6}, thickness:2, color:PDFLib.rgb(0,0,0) });
         } else if (field.type === 'date') {
-          pg.drawText(fieldValues[idx], { x: cx - 38, y: cy - 6, size: 20, font: helveticaBold, color: PDFLib.rgb(0,0,0) });
+          pg.drawText(fieldValues[idx], { x: cx - 38, y: cy - 6, size: 13, font: helveticaBold, color: PDFLib.rgb(0,0,0) });
         } else if (field.type === 'signature') {
           const img = await pdfLibDoc.embedPng(fieldValues[idx]);
           const dims = img.scale(0.18);
