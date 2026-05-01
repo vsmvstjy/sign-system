@@ -6,13 +6,7 @@
   <style>
     * { box-sizing: border-box; }
     body { font-family: sans-serif; margin: 0; background: #f9f9f9; }
-    header {
-      background: #002D72;
-      padding: 14px 24px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
+    header { background: #002D72; padding: 14px 24px; display: flex; align-items: center; gap: 16px; }
     header img { height: 44px; }
     header .title-wrap { color: white; }
     header .title-wrap .sub { font-size: 11px; opacity: 0.75; letter-spacing: 0.5px; }
@@ -20,28 +14,28 @@
     main { padding: 20px; }
     #pdfArea { text-align: center; }
     #nav { margin-bottom: 10px; }
-    #nav button {
-      margin: 10px; padding: 10px 20px; font-size: 16px;
-      border-radius: 6px; border: none; background: #1890ff;
-      color: white; font-weight: bold; cursor: pointer; transition: background 0.3s;
-    }
-    button:hover { background: #40a9ff; }
-    canvas { border: 1px solid #ccc; display: block; margin: 0 auto 20px auto; cursor: crosshair; }
-    #marker {
-      position: absolute; width: 100px; height: 40px;
-      background: rgba(255, 248, 220, 0.5);
-      border: 2px dashed #ff5c5c; border-radius: 6px; display: none;
-      pointer-events: none; text-align: center; line-height: 40px;
-      font-weight: bold; color: #ff5c5c; font-size: 16px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-    }
-    #formArea { max-width: 500px; margin: 30px auto; text-align: center; }
+    #nav button { margin: 10px; padding: 10px 20px; font-size: 16px; border-radius: 6px; border: none; background: #1890ff; color: white; font-weight: bold; cursor: pointer; }
+    button:hover { opacity: 0.85; }
+    #toolbar { display: none; max-width: 700px; margin: 10px auto; background: white; border: 1px solid #ddd; border-radius: 8px; padding: 12px; text-align: center; }
+    #toolbar span { font-weight: bold; margin-right: 8px; font-size: 14px; }
+    .tool-btn { padding: 8px 16px; margin: 4px; border-radius: 6px; border: 2px solid #ddd; background: white; cursor: pointer; font-size: 14px; font-weight: bold; }
+    .tool-btn[data-type="check"] { color: #1890ff; }
+    .tool-btn[data-type="signature"] { color: #ff5c5c; }
+    .tool-btn[data-type="date"] { color: #52c41a; }
+    .tool-btn.active[data-type="check"] { background: #e6f7ff; border-color: #1890ff; }
+    .tool-btn.active[data-type="signature"] { background: #fff1f0; border-color: #ff5c5c; }
+    .tool-btn.active[data-type="date"] { background: #f6ffed; border-color: #52c41a; }
+    #canvasWrap { position: relative; display: inline-block; cursor: crosshair; }
+    canvas { display: block; border: 1px solid #ccc; }
+    .field-marker { position: absolute; border-radius: 4px; text-align: center; font-weight: bold; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    #fieldList { max-width: 700px; margin: 12px auto; }
+    #fieldList p { text-align: center; color: #888; font-size: 13px; }
+    .field-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: white; border: 1px solid #eee; border-radius: 6px; margin: 4px 0; font-size: 13px; }
+    .del-btn { background: #ff4d4f; color: white; border: none; border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 12px; }
+    #formArea { max-width: 500px; margin: 20px auto; text-align: center; }
     #formArea input, #formArea button { width: 100%; margin: 8px 0; padding: 10px; font-size: 14px; }
-    #linkOutput { text-align: center; word-break: break-word; }
-    footer {
-      text-align: center; padding: 16px;
-      font-size: 12px; color: #4A4F5A; border-top: 1px solid #e8e8e8; margin-top: 40px;
-    }
+    #linkOutput { text-align: center; word-break: break-word; margin-top: 10px; }
+    footer { text-align: center; padding: 16px; font-size: 12px; color: #999; border-top: 1px solid #e8e8e8; margin-top: 40px; }
   </style>
 </head>
 <body>
@@ -59,9 +53,17 @@
         <span id="pageInfo">Page 0/0</span>
         <button id="nextPage">다음 페이지</button>
       </div>
-      <canvas id="pdfCanvas"></canvas>
-      <div id="marker">서명</div>
+      <div id="toolbar">
+        <span>추가할 필드:</span>
+        <button class="tool-btn active" data-type="check">☑ 체크(√)</button>
+        <button class="tool-btn" data-type="signature">✍ 서명</button>
+        <button class="tool-btn" data-type="date">📅 날짜</button>
+      </div>
+      <div id="canvasWrap">
+        <canvas id="pdfCanvas"></canvas>
+      </div>
     </div>
+    <div id="fieldList"></div>
     <div id="formArea">
       <input type="text" id="docTitle" placeholder="문서 제목">
       <input type="email" id="receiver" placeholder="회신 받을 이메일">
@@ -73,36 +75,83 @@
   <footer>개발 · 운영: 경기대학교 연구지원팀 이주영</footer>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-  <script>
-    pdfjsLib.GlobalWorkerOptions.workerSrc =
-        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
-  </script>
+  <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';</script>
+  <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
   <script type="module">
     import { db } from './firebase-config.js';
-    import { doc, setDoc, Timestamp }
-      from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
+    import { doc, setDoc, Timestamp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
 
     const RENDER_SCALE = 1.2;
     let pdfDoc, currentPage = 1, totalPages = 0, pdfBase64 = '';
-    let posX = 0, posY = 0, posPage = 1;
-    const canvas = document.getElementById('pdfCanvas'), ctx = canvas.getContext('2d');
-    const marker = document.getElementById('marker');
+    let fields = [];
+    let selectedType = 'check';
+
+    const canvas = document.getElementById('pdfCanvas');
+    const ctx = canvas.getContext('2d');
+    const canvasWrap = document.getElementById('canvasWrap');
     const pageInfo = document.getElementById('pageInfo');
+
+    const FIELD_CONFIG = {
+      check:     { color: '#1890ff', label: '☑ 체크(√)', w: 50, h: 30 },
+      signature: { color: '#ff5c5c', label: '✍ 서명',   w: 100, h: 40 },
+      date:      { color: '#52c41a', label: '📅 날짜',   w: 90,  h: 30 },
+    };
+
+    document.querySelectorAll('.tool-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedType = btn.dataset.type;
+      });
+    });
+
+    async function compressPdf(rawBytes) {
+      const scales = [1.2, 1.0, 0.8];
+      const qualities = [0.85, 0.7];
+      for (const scale of scales) {
+        for (const quality of qualities) {
+          const src = await pdfjsLib.getDocument({ data: rawBytes }).promise;
+          const out = await PDFLib.PDFDocument.create();
+          for (let i = 1; i <= src.numPages; i++) {
+            const pg = await src.getPage(i);
+            const origVp = pg.getViewport({ scale: 1.0 });
+            const scaledVp = pg.getViewport({ scale });
+            const off = document.createElement('canvas');
+            off.width = scaledVp.width; off.height = scaledVp.height;
+            await pg.render({ canvasContext: off.getContext('2d'), viewport: scaledVp }).promise;
+            const b64 = off.toDataURL('image/jpeg', quality).split(',')[1];
+            const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+            const img = await out.embedJpg(bytes);
+            const newPg = out.addPage([origVp.width, origVp.height]);
+            newPg.drawImage(img, { x: 0, y: 0, width: origVp.width, height: origVp.height });
+          }
+          const saved = await out.save();
+          if (saved.length <= 720 * 1024) return saved;
+        }
+      }
+      return null;
+    }
 
     document.getElementById('pdfFile').addEventListener('change', e => {
       const file = e.target.files[0];
-      if (file.size > 750 * 1024) {
-        alert(`파일 용량이 너무 큽니다 (${(file.size / 1024).toFixed(0)}KB).\n750KB 이하의 PDF만 사용 가능합니다.`);
-        e.target.value = '';
-        return;
-      }
       const reader = new FileReader();
       reader.onload = async () => {
-        pdfBase64 = reader.result.split(',')[1];
-        const raw = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
-        pdfDoc = await pdfjsLib.getDocument({data: raw}).promise;
+        let rawBytes = Uint8Array.from(atob(reader.result.split(',')[1]), c => c.charCodeAt(0));
+        if (file.size > 750 * 1024) {
+          const compressed = await compressPdf(rawBytes);
+          if (!compressed) {
+            alert('파일 용량이 너무 커서 압축할 수 없습니다.\n더 작은 파일을 사용해 주세요.');
+            e.target.value = ''; return;
+          }
+          alert(`파일이 자동으로 압축되었습니다.\n${(file.size/1024).toFixed(0)}KB → ${(compressed.length/1024).toFixed(0)}KB`);
+          rawBytes = compressed;
+        }
+        pdfBase64 = btoa(String.fromCharCode(...rawBytes));
+        pdfDoc = await pdfjsLib.getDocument({ data: rawBytes }).promise;
         totalPages = pdfDoc.numPages;
         currentPage = 1;
+        fields = [];
+        document.getElementById('toolbar').style.display = 'block';
         await renderPage(currentPage);
       };
       reader.readAsDataURL(file);
@@ -116,44 +165,76 @@
       canvas.height = vp.height;
       await page.render({ canvasContext: ctx, viewport: vp }).promise;
       pageInfo.textContent = `Page ${n}/${totalPages}`;
-      if (n === posPage) {
-        const rect = canvas.getBoundingClientRect();
-        const ratio = rect.width / canvas.width;
-        const displayX = posX * RENDER_SCALE * ratio;
-        const displayY = posY * RENDER_SCALE * ratio;
-        marker.style.left = `${rect.left + displayX - 50}px`;
-        marker.style.top = `${rect.top + displayY - 20 + window.scrollY}px`;
-        marker.style.display = 'block';
-      } else {
-        marker.style.display = 'none';
-      }
+      renderMarkers();
     }
+
+    function renderMarkers() {
+      document.querySelectorAll('.field-marker').forEach(el => el.remove());
+      fields.filter(f => f.page === currentPage).forEach((field, _) => {
+        const idx = fields.indexOf(field);
+        const cfg = FIELD_CONFIG[field.type];
+        const div = document.createElement('div');
+        div.className = 'field-marker';
+        const cssX = field.posX * RENDER_SCALE;
+        const cssY = field.posY * RENDER_SCALE;
+        div.style.cssText = `left:${cssX - cfg.w/2}px; top:${cssY - cfg.h/2}px;
+          width:${cfg.w}px; height:${cfg.h}px;
+          background:${cfg.color}33; border:2px dashed ${cfg.color}; color:${cfg.color};`;
+        div.textContent = cfg.label;
+        div.title = '클릭하여 삭제';
+        div.addEventListener('click', e => {
+          e.stopPropagation();
+          fields.splice(idx, 1);
+          renderMarkers();
+          renderFieldList();
+        });
+        canvasWrap.appendChild(div);
+      });
+    }
+
+    function renderFieldList() {
+      const list = document.getElementById('fieldList');
+      list.innerHTML = '';
+      if (fields.length === 0) return;
+      const p = document.createElement('p');
+      p.textContent = '추가된 필드 (마커 클릭 또는 삭제 버튼으로 제거):';
+      list.appendChild(p);
+      fields.forEach((field, idx) => {
+        const cfg = FIELD_CONFIG[field.type];
+        const item = document.createElement('div');
+        item.className = 'field-item';
+        item.innerHTML = `<span style="color:${cfg.color}">${cfg.label}</span><span>${field.page}페이지</span><button class="del-btn">삭제</button>`;
+        item.querySelector('.del-btn').addEventListener('click', () => {
+          fields.splice(idx, 1);
+          renderMarkers();
+          renderFieldList();
+        });
+        list.appendChild(item);
+      });
+    }
+
+    canvas.addEventListener('click', e => {
+      if (!pdfDoc) return;
+      const rect = canvas.getBoundingClientRect();
+      const posX = (e.clientX - rect.left) * (canvas.width / rect.width) / RENDER_SCALE;
+      const posY = (e.clientY - rect.top) * (canvas.height / rect.height) / RENDER_SCALE;
+      fields.push({ type: selectedType, page: currentPage, posX, posY });
+      renderMarkers();
+      renderFieldList();
+    });
 
     document.getElementById('prevPage').onclick = () => { if (currentPage > 1) renderPage(--currentPage); };
     document.getElementById('nextPage').onclick = () => { if (currentPage < totalPages) renderPage(++currentPage); };
 
-    canvas.addEventListener('click', e => {
-      const rect = canvas.getBoundingClientRect();
-      const cssX = e.clientX - rect.left;
-      const cssY = e.clientY - rect.top;
-      const canvasX = cssX * (canvas.width / rect.width);
-      const canvasY = cssY * (canvas.height / rect.height);
-      posX = canvasX / RENDER_SCALE;
-      posY = canvasY / RENDER_SCALE;
-      posPage = currentPage;
-      marker.style.left = `${e.clientX - 50}px`;
-      marker.style.top = `${e.clientY - 20 + window.scrollY}px`;
-      marker.style.display = 'block';
-    });
-
     document.getElementById('generate').onclick = async () => {
       const title = document.getElementById('docTitle').value;
       const receiver = document.getElementById('receiver').value;
-      if (!title || !receiver || !pdfBase64) return alert('모두 입력 후 위치 클릭');
+      if (!title || !receiver || !pdfBase64) return alert('모두 입력해주세요');
+      if (fields.length === 0) return alert('필드를 하나 이상 추가해주세요');
       const id = Math.random().toString(36).substr(2, 10);
       const twoDaysLater = Timestamp.fromDate(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000));
       await setDoc(doc(db, 'signRequests', id), {
-        docTitle: title, receiver, pdfBase64, posX, posY, page: posPage,
+        docTitle: title, receiver, pdfBase64, fields,
         createdAt: Timestamp.now(), expiresAt: twoDaysLater
       });
       const url = `${window.location.origin}/sign.html?id=${id}`;
