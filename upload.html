@@ -147,11 +147,12 @@
       }
       const reader = new FileReader();
       reader.onload = async () => {
-        pdfBase64 = reader.result.split(',')[1];
-        const raw = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
-        pdfDoc = await pdfjsLib.getDocument({data: raw}).promise;
+        pdfBase64 = btoa(String.fromCharCode(...rawBytes));
+        pdfDoc = await pdfjsLib.getDocument({ data: rawBytes }).promise;
         totalPages = pdfDoc.numPages;
         currentPage = 1;
+        fields = [];
+        document.getElementById('toolbar').style.display = 'block';
         await renderPage(currentPage);
       };
       reader.readAsDataURL(file);
