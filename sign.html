@@ -68,6 +68,7 @@
       <span id="pageInfo">0 / 0</span>
       <button id="nextPage">다음 페이지</button>
     </div>
+    <p id="loadingText" style="text-align:center; color:#888; font-size:14px; margin:8px 0;">문서를 불러오는 중입니다...</p>
     <div id="pdfContainer">
       <canvas id="pdfCanvas"></canvas>
       <div id="marker">서명</div>
@@ -149,23 +150,14 @@
     }
 
     async function renderPage(n) {
+      document.getElementById('loadingText').style.display = 'block';
   const page = await pdfDoc.getPage(n);
   const vp = page.getViewport({ scale: RENDER_SCALE });
   canvas.width = vp.width;
   canvas.height = vp.height;
       
-      ctx.fillStyle = '#f0f0f0';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#888';
-     ctx.font = `bold ${canvas.width * 0.035}px sans-serif`;
-     ctx.textAlign = 'center';
-     ctx.fillText('문서를 불러오는 중입니다...', canvas.width / 2, canvas.height / 2 - 10);
-     ctx.font = `${canvas.width * 0.025}px sans-serif`;
-     ctx.fillStyle = '#aaa';
-     ctx.fillText('잠시만 기다려 주세요', canvas.width / 2, canvas.height / 2 + 30);
-  await new Promise(resolve => requestAnimationFrame(resolve));
-      
   await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      document.getElementById('loadingText').style.display = 'none';
   pageInfo.textContent = `${n} / ${totalPages}`;
   if (n === data.page) {
     const rect = canvas.getBoundingClientRect();
