@@ -142,9 +142,9 @@
     const sigCtx = sigCanvas.getContext('2d');
 
     const FIELD_CONFIG = {
-      check:     { color: '#1890ff', label: '☑ 체크', w: 55, h: 25 },
+      check:     { color: '#1890ff', label: '☑ 체크', w: 45, h: 25 },
       signature: { color: '#ff5c5c', label: '✍ 서명', w: 80, h: 30 },
-      date:      { color: '#52c41a', label: '📅 날짜', w: 90, h: 30 },
+      date:      { color: '#52c41a', label: '📅 날짜', w: 80, h: 25 },
       name:      { color: '#722ed1', label: '👤 이름', w: 80, h: 25 },
       memo:      { color: '#fa8c16', label: '📝 메모' },
     };
@@ -216,7 +216,7 @@
           background:${filled ? cfg.color+'55' : cfg.color+'22'};
           border:2px ${filled ? 'solid' : 'dashed'} ${cfg.color};
           color:${cfg.color};
-          font-size:${field.type==='memo' ? '15' : (field.type==='date'&&filled?'15':'15')}px;
+          font-size:${field.type==='memo' ? '11' : (field.type==='date'&&filled?'10':'12')}px;
           ${field.type==='memo' ? 'white-space:pre-wrap; text-align:left; align-items:flex-start; padding:4px;' : ''}`;
         div.textContent = label;
         div.addEventListener('click', () => handleFieldClick(idx));
