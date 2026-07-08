@@ -13,7 +13,7 @@
     header .title-wrap .sub { font-size: 11px; opacity: 0.75; letter-spacing: 0.5px; }
     header .title-wrap .main { font-size: 17px; font-weight: bold; }
     .notice { max-width: 800px; margin: 16px auto 0; background: #e8f0fe; border-left: 4px solid #002D72; padding: 10px 16px; border-radius: 4px; font-size: 13px; color: #333; }
-    #progressArea { max-width: 800px; margin: 12px auto; background: white; border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 4px rgba(0,0,0,0.1); flex-wrap: wrap; gap: 8px; }
+    #progressArea { position: sticky; top: 0; z-index: 50; max-width: 800px; margin: 12px auto; background: white; border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 10px rgba(0,0,0,0.18); flex-wrap: wrap; gap: 8px; }
     #progressText { font-size: 14px; color: #FF0000; }
     #submitBtn { padding: 10px 24px; background: #002D72; color: white; border: none; border-radius: 6px; font-size: 15px; font-weight: bold; cursor: pointer; }
     #submitBtn:hover { background: #003fa3; }
@@ -284,7 +284,7 @@
         sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
         sigModal.style.display = 'flex';
       } else if (field.type === 'name') {
-        openTextInput(idx, '이름 입력', false);
+        alert('성명은 제출 시 입력하시는 이름이 자동으로 들어갑니다.');
       } else if (field.type === 'memo') {
         openTextInput(idx, '메모 입력', true);
       }
@@ -371,6 +371,7 @@
     };
 
     function startAuthAndSend() {
+      data.fields.forEach((f, i) => { if (f.type === 'name') fieldValues[i] = userName; });
       google.accounts.oauth2.initTokenClient({
         client_id: '972595541590-k962h1slhqu6cm1r5fhp9nvdd8hu21vk.apps.googleusercontent.com',
         scope: 'https://www.googleapis.com/auth/gmail.send',
