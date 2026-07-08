@@ -514,4 +514,459 @@
     init();
   </script>
 </body>
+</html>      document.body.style.overflow = 'hidden';
+      document.body.style.height = '100vh';
+      document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+    }
+  </script>
+
+  <header>
+    <img src="logo.png" alt="경기대학교 로고">
+    <div class="title-wrap">
+      <div class="sub">KYONGGI UNIVERSITY</div>
+      <div class="main">연구지원팀 전자서명 시스템</div>
+    </div>
+  </header>
+  <div class="notice"><b>본 문서는 연구지원팀 전자서명 시스템을 통해 서명자의 학교 이메일 계정을 사용하여 제출됩니다.</b></div>
+
+  <div id="progressArea">
+    <span id="progressText">문서를 불러오는 중...</span>
+    <button id="submitBtn" disabled>✉ 제출하기</button>
+  </div>
+
+  <main>
+    <p id="loadingText">문서를 불러오는 중입니다...</p>
+    <div class="page-nav">
+      <button id="prevPage">이전 페이지</button>
+      <span id="pageInfo">0 / 0</span>
+      <button id="nextPage">다음 페이지</button>
+    </div>
+    <div id="pdfContainer">
+      <canvas id="pdfCanvas"></canvas>
+    </div>
+  </main>
+  <footer>개발 · 운영: 경기대학교 연구지원팀 이주영</footer>
+
+  <div id="sigModal" class="modal">
+    <div class="modal-content">
+      <h3 style="font-size:30px;">서명해 주세요</h3>
+      <canvas id="sigCanvas" width="800" height="300"></canvas><br>
+      <button id="clearSig" style="padding:15px 30px;font-size:24px;">지우기</button>
+      <button id="saveSig" style="padding:15px 30px;font-size:24px;">완료</button>
+    </div>
+  </div>
+  <div id="textInputModal" class="modal">
+    <div class="modal-content">
+      <h3 id="textInputTitle" style="font-size:24px;">입력</h3>
+      <textarea id="textInputArea" rows="4" style="font-size:16px;padding:10px;width:90%;max-width:400px;border:1px solid #ccc;border-radius:6px;"></textarea><br>
+      <button id="cancelTextInput" style="background:#999;">취소</button>
+      <button id="saveTextInput">완료</button>
+    </div>
+  </div>
+  <div id="nameModal" class="modal">
+    <div class="modal-content">
+      <h3 style="font-size:30px;">문서 내용을 확인했으며, <br>학교 이메일로 전자서명을 <br>제출하는 것에 동의합니다.
+        <br>
+  <span style="font-size:18px; color:red;">
+    (@kyonggi.ac.kr로 로그인 필수)
+  </span></h3>
+      <input id="nameInput" type="text" placeholder="이름 입력" style="font-size:24px;padding:10px;margin-top:20px;width:80%;border:1px solid #ccc;border-radius:8px;"><br><br>
+      <button id="confirmName" style="padding:15px 30px;font-size:24px;">확인</button>
+    </div>
+  </div>
+    <div id="completeScreen">
+    <div class="complete-inner">
+      <div class="complete-check">✅</div>
+      <h2>제출이 완료되었습니다</h2>
+      <p class="complete-sub">서명하신 문서가 담당자 이메일로 발송되었습니다.<br><b>이 창은 닫으셔도 됩니다. </b></p>
+      <div class="complete-info">
+        <div><span class="lbl">문서</span><span class="val" id="completeDocTitle"></span></div>
+        <div><span class="lbl">제출자</span><span class="val" id="completeUser"></span></div>
+        <div><span class="lbl">제출 시각</span><span class="val" id="completeTime"></span></div>
+      </div>
+      <button id="resubmitBtn">다시 제출하기</button>
+    </div>
+  </div>
+  <div id="loadingModal" class="modal">
+    <div class="modal-content">
+      <h3 style="font-size:30px;">⏳ 제출 중입니다...</h3>
+      <p style="margin-top:10px;font-size:20px;">잠시만 기다려 주세요.</p>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';</script>
+  <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://apis.google.com/js/api.js"></script>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
+    import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDrkWBu5k-2nBHhZEHwgrBrPkWSKpro6po",
+      authDomain: "sign-system-a8921.firebaseapp.com",
+      projectId: "sign-system-a8921",
+      storageBucket: "sign-system-a8921.appspot.com",
+      messagingSenderId: "356422555230",
+      appId: "1:356422555230:web:5522aefcfc133d096286cf"
+    };
+    initializeApp(firebaseConfig);
+    const db = getFirestore();
+
+    const RENDER_SCALE = window.innerWidth < 768 ? 1.2 : 1.5;
+    let data, pdfDoc, currentPage = 1, totalPages = 0;
+    let userName = '';
+    let fieldValues = {};
+    let currentSigningField = -1;
+    let currentTextField = -1;
+    let tokenGlobal;
+
+    const canvas = document.getElementById('pdfCanvas');
+    const ctx = canvas.getContext('2d');
+    const pdfContainer = document.getElementById('pdfContainer');
+    const pageInfo = document.getElementById('pageInfo');
+    const sigModal = document.getElementById('sigModal');
+    const sigCanvas = document.getElementById('sigCanvas');
+    const sigCtx = sigCanvas.getContext('2d');
+    sigCtx.lineWidth = 5;
+    sigCtx.lineCap = 'round';
+    sigCtx.lineJoin = 'round';
+
+    const FIELD_CONFIG = {
+      check:     { color: '#1890ff', label: '☑ 체크', w: 45, h: 25 },
+      signature: { color: '#ff5c5c', label: '✍ 서명', w: 50, h: 30 },
+      date:      { color: '#52c41a', label: '📅 날짜', w: 80, h: 25 },
+      name:      { color: '#722ed1', label: '👤 이름', w: 70, h: 25 },
+      memo:      { color: '#fa8c16', label: '📝 메모' },
+    };
+
+    async function init() {
+      const id = new URLSearchParams(location.search).get('id');
+      document.getElementById('loadingText').style.display = 'block';
+      const snap = await getDoc(doc(db, 'signRequests', id));
+      if (!snap.exists()) return alert('잘못된 링크입니다.');
+      data = snap.data();
+      if (!data.fields) data.fields = [{ type: 'signature', page: data.page, posX: data.posX, posY: data.posY }];
+      const rawPdf = Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0));
+      pdfDoc = await pdfjsLib.getDocument({ data: rawPdf }).promise;
+      totalPages = pdfDoc.numPages;
+      document.getElementById('loadingText').style.display = 'none';
+      updateProgress();
+      await renderPage(currentPage);
+    }
+
+    async function renderPage(n) {
+      currentPage = n;
+      document.getElementById('loadingText').style.display = 'block';
+      const page = await pdfDoc.getPage(n);
+      const vp = page.getViewport({ scale: RENDER_SCALE });
+      canvas.width = vp.width;
+      canvas.height = vp.height;
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      document.getElementById('loadingText').style.display = 'none';
+      pageInfo.textContent = `${n} / ${totalPages}`;
+      renderFieldMarkers();
+    }
+
+    function renderFieldMarkers() {
+      document.querySelectorAll('.field-marker').forEach(el => el.remove());
+      const rect = canvas.getBoundingClientRect();
+      const ratio = rect.width / canvas.width;
+
+      data.fields.forEach((field, idx) => {
+        if (field.page !== currentPage) return;
+        const cfg = FIELD_CONFIG[field.type];
+        const div = document.createElement('div');
+        div.className = 'field-marker';
+        const filled = fieldValues[idx] !== undefined;
+
+        let cssX, cssY, w, h;
+        if (field.type === 'memo') {
+          cssX = field.posX * RENDER_SCALE * ratio;
+          cssY = field.posY * RENDER_SCALE * ratio;
+          w = field.w * RENDER_SCALE * ratio;
+          h = field.h * RENDER_SCALE * ratio;
+        } else {
+          cssX = field.posX * RENDER_SCALE * ratio - cfg.w/2;
+          cssY = field.posY * RENDER_SCALE * ratio - cfg.h/2;
+          w = cfg.w; h = cfg.h;
+        }
+
+        let label = cfg.label;
+        if (filled) {
+          if (field.type === 'check') label = '✓';
+          else if (field.type === 'date') label = fieldValues[idx];
+          else if (field.type === 'signature') label = '✓ 서명완료';
+          else if (field.type === 'name') label = '✓ 기입완료';
+          else if (field.type === 'memo') {
+            label = fieldValues[idx];
+          }
+        }
+
+        div.style.cssText = `left:${cssX}px; top:${cssY}px; width:${w}px; height:${h}px;
+          background:${filled ? cfg.color+'55' : cfg.color+'22'};
+          border:2px ${filled ? 'solid' : 'dashed'} ${cfg.color};
+          color:${cfg.color};
+          font-size:${field.type==='memo' ? '11' : (field.type==='date'&&filled?'10':'12')}px;
+          ${field.type==='memo' ? 'white-space:pre-wrap; text-align:left; align-items:flex-start; padding:4px;' : ''}`;
+        div.textContent = label;
+        div.addEventListener('click', () => handleFieldClick(idx));
+        pdfContainer.appendChild(div);
+      });
+    }
+
+    function handleFieldClick(idx) {
+      const field = data.fields[idx];
+      if (fieldValues[idx] !== undefined) {
+        if (confirm('이 항목을 취소하시겠습니까?')) {
+          delete fieldValues[idx];
+          updateProgress();
+          renderFieldMarkers();
+        }
+        return;
+      }
+      if (field.type === 'check' || field.type === 'name') {
+        fieldValues[idx] = true;
+        updateProgress(); renderFieldMarkers();
+      } else if (field.type === 'date') {
+        const t = new Date();
+        fieldValues[idx] = `${t.getFullYear()}. ${t.getMonth()+1}. ${t.getDate()}.`;
+        updateProgress(); renderFieldMarkers();
+      } else if (field.type === 'signature') {
+        currentSigningField = idx;
+        sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+        sigModal.style.display = 'flex';
+      } else if (field.type === 'memo') {
+        openTextInput(idx, '메모 입력', true);
+      }
+    }
+
+    function openTextInput(idx, title, multiline) {
+      currentTextField = idx;
+      document.getElementById('textInputTitle').textContent = title;
+      const area = document.getElementById('textInputArea');
+      area.value = '';
+      area.rows = multiline ? 5 : 1;
+      document.getElementById('textInputModal').style.display = 'flex';
+      setTimeout(() => area.focus(), 100);
+    }
+
+    document.getElementById('saveTextInput').onclick = () => {
+      const v = document.getElementById('textInputArea').value.trim();
+      if (!v) { alert('내용을 입력해주세요'); return; }
+      fieldValues[currentTextField] = v;
+      document.getElementById('textInputModal').style.display = 'none';
+      (); renderFieldMarkers();
+    };
+    document.getElementById('cancelTextInput').onclick = () => {
+      document.getElementById('textInputModal').style.display = 'none';
+    };
+
+    function () {
+      const total = data.fields.length;
+      const filled = Objec t.keys(fieldValues).length;
+      document.getElementById('progressText').textContent = `${filled}개 항목 작성됨 (전체 ${total}개 / 원하는 항목만 작성하세요)`;
+      document.getElementById('submitBtn').disabled = filled === 0;
+    }
+
+    document.getElementById('clearSig').onclick = () => sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+    document.getElementById('saveSig').onclick = () => {
+      sigModal.style.display = 'none';
+      fieldValues[currentSigningField] = sigCanvas.toDataURL();
+      updateProgress(); renderFieldMarkers();
+    };
+
+    let drawing = false;
+    ['mousedown', 'touchstart'].forEach(evt =>
+      sigCanvas.addEventListener(evt, e => {
+        drawing = true;
+        const pos = e.touches ? e.touches[0] : e;
+        const rect = sigCanvas.getBoundingClientRect();
+        const sx = sigCanvas.width / rect.width, sy = sigCanvas.height / rect.height;
+        sigCtx.beginPath();
+        sigCtx.moveTo((pos.clientX - rect.left) * sx, (pos.clientY - rect.top) * sy);
+      })
+    );
+    ['mousemove', 'touchmove'].forEach(evt =>
+      sigCanvas.addEventListener(evt, e => {
+        if (!drawing) return;
+        const pos = e.touches ? e.touches[0] : e;
+        const rect = sigCanvas.getBoundingClientRect();
+        const sx = sigCanvas.width / rect.width, sy = sigCanvas.height / rect.height;
+        sigCtx.lineTo((pos.clientX - rect.left) * sx, (pos.clientY - rect.top) * sy);
+        sigCtx.stroke();
+        e.preventDefault();
+      })
+    );
+    ['mouseup', 'touchend', 'mouseout'].forEach(evt =>
+      sigCanvas.addEventListener(evt, () => drawing = false)
+    );
+
+    document.getElementById('prevPage').onclick = () => { if (currentPage > 1) renderPage(--currentPage); };
+    document.getElementById('nextPage').onclick = () => { if (currentPage < totalPages) renderPage(++currentPage); };
+
+    document.getElementById('submitBtn').onclick = () => {
+      if (Object.keys(fieldValues).length === 0) { alert('최소 한 개 항목은 작성해주세요.'); return; }
+      if (!userName) {
+        document.getElementById('nameInput').value = '';
+        document.getElementById('nameModal').style.display = 'flex';
+      } else startAuthAndSend();
+    };
+
+    document.getElementById('confirmName').onclick = () => {
+      const n = document.getElementById('nameInput').value.trim();
+      if (!n) { alert('이름을 입력해 주세요!'); return; }
+      userName = n;
+      document.getElementById('nameModal').style.display = 'none';
+      startAuthAndSend();
+    };
+
+    function startAuthAndSend() {
+      data.fields.forEach((f, i) => { if (f.type === 'name' && fieldValues[i] !== undefined) fieldValues[i] = userName; });
+      google.accounts.oauth2.initTokenClient({
+        client_id: '972595541590-k962h1slhqu6cm1r5fhp9nvdd8hu21vk.apps.googleusercontent.com',
+        scope: 'https://www.googleapis.com/auth/gmail.send',
+        callback: tok => { tokenGlobal = tok.access_token; sendEmail(); }
+      }).requestAccessToken();
+    }
+
+    document.getElementById('resubmitBtn').onclick = () => location.reload();
+
+    function showCompleteScreen() {
+      document.getElementById('completeDocTitle').textContent = data.docTitle || '-';
+      document.getElementById('completeUser').textContent = userName || '-';
+      document.getElementById('completeTime').textContent = new Date().toLocaleString('ko-KR');
+      document.getElementById('completeScreen').classList.add('show');
+      window.scrollTo(0, 0);
+    }
+
+    async function renderTextToPng(text, width, height, opts) {
+      const dpr = 3;
+      const c = document.createElement('canvas');
+      c.width = width * dpr; c.height = height * dpr;
+      const cctx = c.getContext('2d');
+      cctx.scale(dpr, dpr);
+      cctx.fillStyle = opts.color || 'black';
+      const sz = opts.size || 12;
+      cctx.font = `${opts.bold ? 'bold ' : ''}${sz}px 'Malgun Gothic', '맑은 고딕', sans-serif`;
+      cctx.textBaseline = 'top';
+      if (opts.multiline) {
+        const maxW = width - 4;
+        const lineH = sz * 1.4;
+        let y = 2;
+        for (const para of text.split('\n')) {
+          let cur = '';
+          for (const ch of para) {
+            const test = cur + ch;
+            if (cctx.measureText(test).width > maxW && cur) {
+              cctx.fillText(cur, 2, y);
+              y += lineH;
+              cur = ch;
+              if (y + lineH > height) break;
+            } else cur = test;
+          }
+          if (cur && y + sz <= height) { cctx.fillText(cur, 2, y); y += lineH; }
+          if (y + lineH > height) break;
+        }
+      } else {
+        cctx.textAlign = opts.align || 'center';
+        const tx = opts.align === 'left' ? 2 : (opts.align === 'right' ? width - 2 : width/2);
+        cctx.fillText(text, tx, height/2 - sz/2);
+      }
+      return c.toDataURL('image/png');
+    }
+
+    async function sendEmail() {
+      document.getElementById('loadingModal').style.display = 'flex';
+      const rawPdf = Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0));
+      const pdfLibDoc = await PDFLib.PDFDocument.load(rawPdf);
+      const helveticaBold = await pdfLibDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
+
+      for (let idx = 0; idx < data.fields.length; idx++) {
+        if (fieldValues[idx] === undefined) continue;
+        const field = data.fields[idx];
+        const pg = pdfLibDoc.getPage(field.page - 1);
+        const cx = field.posX;
+        const cy = pg.getHeight() - field.posY;
+
+        if (field.type === 'check') {
+          const s = 12;
+          pg.drawLine({ start:{x:cx-s*0.6,y:cy+s*0.1}, end:{x:cx-s*0.1,y:cy-s*0.4}, thickness:2, color:PDFLib.rgb(0,0,0) });
+          pg.drawLine({ start:{x:cx-s*0.1,y:cy-s*0.4}, end:{x:cx+s*0.7,y:cy+s*0.6}, thickness:2, color:PDFLib.rgb(0,0,0) });
+        } else if (field.type === 'date') {
+          pg.drawText(fieldValues[idx], { x: cx - 38, y: cy - 6, size: 13, font: helveticaBold, color: PDFLib.rgb(0,0,0) });
+        } else if (field.type === 'signature') {
+          const img = await pdfLibDoc.embedPng(fieldValues[idx]);
+          const dims = img.scale(0.18);
+          pg.drawImage(img, { x: cx - dims.width/2, y: cy - dims.height/2, width: dims.width, height: dims.height });
+        } else if (field.type === 'name') {
+          const w = 100, h = 24;
+          const png = await renderTextToPng(fieldValues[idx], w, h, { size: 13, bold: true, align: 'center' });
+          const b64 = png.split(',')[1];
+          const img = await pdfLibDoc.embedPng(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
+          pg.drawImage(img, { x: cx - w/2, y: cy - h/2, width: w, height: h });
+        } else if (field.type === 'memo') {
+          const png = await renderTextToPng(fieldValues[idx], field.w, field.h, { size: 11, multiline: true, align: 'left' });
+          const b64 = png.split(',')[1];
+          const img = await pdfLibDoc.embedPng(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
+          pg.drawImage(img, { x: cx, y: cy - field.h, width: field.w, height: field.h });
+        }
+      }
+
+      const signedBytes = await pdfLibDoc.save();
+      let signedBase64 = '';
+      for (let i = 0; i < signedBytes.length; i++) signedBase64 += String.fromCharCode(signedBytes[i]);
+      signedBase64 = btoa(signedBase64);
+
+      const boundary = 'BOUNDARY';
+      const bodyText = `본인은 첨부된 "${data.docTitle}" 문서를 확인하였으며, 아래와 같이 서명/표시합니다.\n\n- 제출자: ${userName}\n- 제출 일시: ${new Date().toLocaleString()}`;
+      const parts = [
+        `--${boundary}`, 'Content-Type: text/plain; charset=UTF-8', '', bodyText,
+        `--${boundary}`, 'Content-Type: application/pdf; name="signed.pdf"', 'Content-Disposition: attachment; filename="signed.pdf"', 'Content-Transfer-Encoding: base64', '', signedBase64,
+      ];
+
+      const sigFields = data.fields.map((f, i) => f.type === 'signature' && fieldValues[i] ? { idx: i, data: fieldValues[i] } : null).filter(Boolean);
+      sigFields.forEach((s, i) => {
+        const fname = sigFields.length > 1 ? `signature_${i+1}.png` : 'signature.png';
+        parts.push(
+          `--${boundary}`,
+          `Content-Type: image/png; name="${fname}"`,
+          `Content-Disposition: attachment; filename="${fname}"`,
+          'Content-Transfer-Encoding: base64', '', s.data.split(',')[1]
+        );
+      });
+      parts.push(`--${boundary}--`);
+
+      const subjectText = `[전자서명 제출] ${data.docTitle} - ${userName}`;
+      const utf8Bytes = new TextEncoder().encode(subjectText);
+      const subject = `=?UTF-8?B?${btoa(String.fromCharCode(...utf8Bytes))}?=`;
+      const lines = ['MIME-Version: 1.0', `To: ${data.receiver}`, `Subject: ${subject}`, `Content-Type: multipart/mixed; boundary=${boundary}`, '', ...parts];
+      const raw = btoa(unescape(encodeURIComponent(lines.join('\r\n')))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+
+      gapi.load('client', () => {
+        gapi.client.init({
+          apiKey: 'AIzaSyBdO8g3lJHfxoiSqgOWXp1q37zMkrkaBg4',
+          discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest']
+        })
+        .then(() => {
+          gapi.client.setToken({ access_token: tokenGlobal });
+          return gapi.client.gmail.users.messages.send({ userId: 'me', resource: { raw } });
+        })
+        .then(() => {
+          document.getElementById('loadingModal').style.display = 'none';
+          showCompleteScreen();
+        })
+        .catch(e => {
+          console.error(e);
+          document.getElementById('loadingModal').style.display = 'none';
+          alert('전송 실패');
+        });
+      });
+    }
+
+    init();
+  </script>
+</body>
 </html>
