@@ -375,7 +375,15 @@
       }).requestAccessToken();
     }
 
-    document.getElementById('closeComplete').onclick = () => { document.getElementById('completeModal').style.display = 'none'; };
+    document.getElementById('resubmitBtn').onclick = () => location.reload();
+
+    function showCompleteScreen() {
+      document.getElementById('completeDocTitle').textContent = data.docTitle || '-';
+      document.getElementById('completeUser').textContent = userName || '-';
+      document.getElementById('completeTime').textContent = new Date().toLocaleString('ko-KR');
+      document.getElementById('completeScreen').classList.add('show');
+      window.scrollTo(0, 0);
+    }
 
     async function renderTextToPng(text, width, height, opts) {
       const dpr = 3;
@@ -491,7 +499,7 @@
         })
         .then(() => {
           document.getElementById('loadingModal').style.display = 'none';
-          document.getElementById('completeModal').style.display = 'flex';
+          showCompleteScreen();
         })
         .catch(e => {
           console.error(e);
