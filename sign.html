@@ -244,7 +244,7 @@
           if (field.type === 'check') label = '✓';
           else if (field.type === 'date') label = fieldValues[idx];
           else if (field.type === 'signature') label = '✓ 서명완료';
-          else if (field.type === 'name') label = fieldValues[idx];
+          else if (field.type === 'name') label = '✓ 기입완료';
           else if (field.type === 'memo') {
             label = fieldValues[idx];
           }
@@ -272,7 +272,7 @@
         }
         return;
       }
-      if (field.type === 'check') {
+      if (field.type === 'check' || field.type === 'name') {
         fieldValues[idx] = true;
         updateProgress(); renderFieldMarkers();
       } else if (field.type === 'date') {
@@ -283,8 +283,6 @@
         currentSigningField = idx;
         sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
         sigModal.style.display = 'flex';
-      } else if (field.type === 'name') {
-        alert('성명은 제출 시 입력하시는 이름이 자동으로 들어갑니다.');
       } else if (field.type === 'memo') {
         openTextInput(idx, '메모 입력', true);
       }
@@ -305,15 +303,15 @@
       if (!v) { alert('내용을 입력해주세요'); return; }
       fieldValues[currentTextField] = v;
       document.getElementById('textInputModal').style.display = 'none';
-      updateProgress(); renderFieldMarkers();
+      (); renderFieldMarkers();
     };
     document.getElementById('cancelTextInput').onclick = () => {
       document.getElementById('textInputModal').style.display = 'none';
     };
 
-    function updateProgress() {
+    function () {
       const total = data.fields.length;
-      const filled = Object.keys(fieldValues).length;
+      const filled = Objec t.keys(fieldValues).length;
       document.getElementById('progressText').textContent = `${filled}개 항목 작성됨 (전체 ${total}개 / 원하는 항목만 작성하세요)`;
       document.getElementById('submitBtn').disabled = filled === 0;
     }
@@ -371,7 +369,7 @@
     };
 
     function startAuthAndSend() {
-      data.fields.forEach((f, i) => { if (f.type === 'name') fieldValues[i] = userName; });
+      data.fields.forEach((f, i) => { if (f.type === 'name' && fieldValues[i] !== undefined) fieldValues[i] = userName; });
       google.accounts.oauth2.initTokenClient({
         client_id: '972595541590-k962h1slhqu6cm1r5fhp9nvdd8hu21vk.apps.googleusercontent.com',
         scope: 'https://www.googleapis.com/auth/gmail.send',
