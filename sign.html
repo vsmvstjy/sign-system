@@ -175,6 +175,9 @@
     const sigModal = document.getElementById('sigModal');
     const sigCanvas = document.getElementById('sigCanvas');
     const sigCtx = sigCanvas.getContext('2d');
+    sigCtx.lineWidth = 5;
+    sigCtx.lineCap = 'round';
+    sigCtx.lineJoin = 'round';
 
     const FIELD_CONFIG = {
       check:     { color: '#1890ff', label: '☑ 체크', w: 45, h: 25 },
